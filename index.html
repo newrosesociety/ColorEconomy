@@ -19,51 +19,124 @@
 <body>
   <canvas id="gameCanvas"></canvas>
   <script>
-    
-    /* ================================ 
-       Simulation Parameters 
+    /* ================================
+       Simulation Parameters
     ================================ */
-
     const SIMULATION = {
-      // Patch & Terrain Settings
-      numPatches: 20,           // Number of terrain patches (affects Voronoi cells)
-      patchColorVariance: 60,   // How much color varies within a patch (0-100)
+      // Terrain (Patch) Settings
+      numPatches: 50,           // Number of patch seeds
+      patchColorVariance: 20,   // How much the patch brightness can vary
 
-      // Creature Behavior
-      initialCreatures: 1000,     // Number of creatures to start with
-      minVertices: 3,           // Minimum shape complexity for creatures
-      maxVertices: 8,           // Maximum shape complexity for creatures
+      // Creature Settings
+      initialCreatures: 1000,     // Starting creature count
+      minVertices: 3,           // Minimum vertices for creature shape
+      maxVertices: 14,           // Maximum vertices for creature shape
       baseEnergy: 80,           // Starting energy for creatures
-      maxEnergyThreshold: 150,  // Energy needed to clone
-      energyDecayRate: 0.1,     // How much energy creatures lose per frame
-      herbivoreEnergyGain: 0.2, // Energy herbivores get when feeding
-      predatorEnergyGain: 10,   // Bonus energy from winning a fight
-      predatorEnergyLoss: 20,   // Energy loss for the losing predator
-      movementSpeed: 1,         // Base movement speed of creatures
+      maxEnergyThreshold: 150,  // Energy required to trigger cloning
+      energyDecayRate: 0.1,     // Energy lost per frame
+      herbivoreEnergyGain: 0.2, // Energy gain per frame if feeding
+      predatorEnergyGain: 10,   // Energy bonus for winning a fight
+      predatorEnergyLoss: 20,   // Energy penalty for losing a fight
+      movementSpeed: 1,         // Base movement speed
+      creatureRadius: 15,       // For collision detection (approximate size)
+      bounceFactor: 1,          // How strongly creatures bounce off each other
 
-      // Collision & Interaction
-      bounceFactor: 1,          // Multiplier for collision force
-      creatureRadius: 15,       // Approximate size of creatures for collisions
-      mutationChance: 1.0,      // 1.0 means mutation always happens on click
+      // Mutation (Mouse Click) Settings
+      mutationChance: 1.0,      // Chance (1.0 = always) to mutate when clicked
 
-      // Rendering & Debugging
-      debugMode: false          // If true, will draw extra debug outlines
+      // Debug mode
+      debugMode: false
     };
 
     /* ================================
        Utility Functions
     ================================ */
 
+    // Returns a random HSL color string.
     function randomColor() {
       return `hsl(${Math.floor(Math.random() * 360)}, 80%, 60%)`;
     }
 
+    // Returns a random number in [min, max)
     function randRange(min, max) {
       return min + Math.random() * (max - min);
     }
 
+    // Compute intersection point of lines p1-p2 and p3-p4.
+    function lineIntersection(p1, p2, p3, p4) {
+      const A1 = p2.y - p1.y;
+      const B1 = p1.x - p2.x;
+      const C1 = A1 * p1.x + B1 * p1.y;
+      const A2 = p4.y - p3.y;
+      const B2 = p3.x - p4.x;
+      const C2 = A2 * p3.x + B2 * p3.y;
+      const det = A1 * B2 - A2 * B1;
+      if (Math.abs(det) < 0.00001) return null; // Parallel lines
+      const x = (B2 * C1 - B1 * C2) / det;
+      const y = (A1 * C2 - A2 * C1) / det;
+      return { x, y };
+    }
+
+    // Clip a polygon (subjectPolygon) against a half-plane defined by point p and normal.
+    // (Uses a Sutherland-Hodgman–like approach.)
+    function clipPolygon(subjectPolygon, p, normal) {
+      let outputList = [];
+      for (let i = 0; i < subjectPolygon.length; i++) {
+        const cur = subjectPolygon[i];
+        const prev = subjectPolygon[(i - 1 + subjectPolygon.length) % subjectPolygon.length];
+        const curDot = (cur.x - p.x) * normal.x + (cur.y - p.y) * normal.y;
+        const prevDot = (prev.x - p.x) * normal.x + (prev.y - p.y) * normal.y;
+        if (curDot >= 0) {
+          if (prevDot < 0) {
+            const intersect = lineIntersection(prev, cur, p, { x: p.x + normal.y, y: p.y - normal.x });
+            if (intersect) outputList.push(intersect);
+          }
+          outputList.push(cur);
+        } else if (prevDot >= 0) {
+          const intersect = lineIntersection(prev, cur, p, { x: p.x + normal.y, y: p.y - normal.x });
+          if (intersect) outputList.push(intersect);
+        }
+      }
+      return outputList;
+    }
+
+    // Compute the Voronoi cell for a given seed among all seeds, within bounds.
+    function computeVoronoiCell(seed, seeds, bounds) {
+      let cell = [
+        { x: bounds.x, y: bounds.y },
+        { x: bounds.x + bounds.w, y: bounds.y },
+        { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
+        { x: bounds.x, y: bounds.y + bounds.h }
+      ];
+      for (let other of seeds) {
+        if (other === seed) continue;
+        const mid = { x: (seed.x + other.x) / 2, y: (seed.y + other.y) / 2 };
+        let normal = { x: seed.x - other.x, y: seed.y - other.y };
+        const len = Math.hypot(normal.x, normal.y);
+        if (len === 0) continue;
+        normal.x /= len;
+        normal.y /= len;
+        cell = clipPolygon(cell, mid, normal);
+        if (cell.length === 0) break;
+      }
+      return cell;
+    }
+
+    // Ray-casting point-in-polygon test.
+    function pointInPolygon(point, polygon) {
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        const intersect = ((yi > point.y) !== (yj > point.y)) &&
+                          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
     /* ================================
-       Canvas Setup
+       Canvas & Global Variables
     ================================ */
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
@@ -72,15 +145,15 @@
 
     let patches = [];
     let creatures = [];
+    const bounds = { x: 0, y: 0, w: canvas.width, h: canvas.height };
 
     /* ================================
-       Generate Tessellated Terrain (Voronoi)
+       Terrain (Patch) Generation
     ================================ */
     function createPatches() {
       let seeds = [];
       const gridCols = Math.ceil(Math.sqrt(SIMULATION.numPatches));
       const gridRows = Math.ceil(SIMULATION.numPatches / gridCols);
-
       for (let r = 0; r < gridRows; r++) {
         for (let c = 0; c < gridCols; c++) {
           if (seeds.length >= SIMULATION.numPatches) break;
@@ -89,20 +162,21 @@
           seeds.push({ x, y });
         }
       }
-
+      // For each seed, compute its Voronoi cell.
       for (let seed of seeds) {
+        let cell = computeVoronoiCell(seed, seeds, bounds);
         let colorVariance = randRange(-SIMULATION.patchColorVariance, SIMULATION.patchColorVariance);
         patches.push({
-          x: seed.x, 
-          y: seed.y,
+          vertices: cell,
           baseColor: `hsl(${randRange(0, 360)}, 80%, ${50 + colorVariance}%)`
         });
       }
     }
 
     /* ================================
-       Generate Creatures
+       Creature Generation & Mutation
     ================================ */
+    // Generate a twisted (self-intersecting) shape.
     function generateTwistedShape(numVertices, radius) {
       let points = [];
       for (let i = 0; i < numVertices; i++) {
@@ -113,6 +187,7 @@
       return points;
     }
 
+    // Spawn a new creature.
     function spawnCreature() {
       let numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
       return {
@@ -134,39 +209,136 @@
     }
 
     /* ================================
-       Update Logic
+       Creature Behavior: Type & Interaction
+    ================================ */
+    // A creature is herbivorous if it has an odd number of vertices.
+    function isHerbivore(creature) {
+      return creature.numVertices % 2 === 1;
+    }
+
+    // Herbivore feeding: if a herbivore is on a patch whose vertex count divides evenly by its vertex count, it gains energy.
+    function herbivoreFeeding(creature) {
+      for (let patch of patches) {
+        if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
+          if (patch.vertices.length % creature.numVertices === 0) {
+            creature.energy += SIMULATION.herbivoreEnergyGain;
+          }
+          break;
+        }
+      }
+    }
+
+    // Check for collision between two creatures (using circle approximation).
+    function creaturesCollide(c1, c2) {
+      const dx = c1.x - c2.x;
+      const dy = c1.y - c2.y;
+      const dist = Math.hypot(dx, dy);
+      return dist < (c1.radius + c2.radius);
+    }
+
+    // Handle collisions (fights and bounces) between creatures.
+    function handleCreatureCollisions() {
+      for (let i = 0; i < creatures.length; i++) {
+        for (let j = i + 1; j < creatures.length; j++) {
+          let a = creatures[i];
+          let b = creatures[j];
+          if (creaturesCollide(a, b)) {
+            // If at least one is a predator (even vertex count), trigger a fight.
+            if (!isHerbivore(a) || !isHerbivore(b)) {
+              if (a.energy > b.energy * 1.1) {
+                a.energy += SIMULATION.predatorEnergyGain;
+                b.energy -= SIMULATION.predatorEnergyLoss;
+              } else if (b.energy > a.energy * 1.1) {
+                b.energy += SIMULATION.predatorEnergyGain;
+                a.energy -= SIMULATION.predatorEnergyLoss;
+              } else {
+                // Similar energy: bounce away.
+                const angle = Math.atan2(b.y - a.y, b.x - a.x);
+                a.dx = -Math.cos(angle) * SIMULATION.bounceFactor;
+                a.dy = -Math.sin(angle) * SIMULATION.bounceFactor;
+                b.dx = Math.cos(angle) * SIMULATION.bounceFactor;
+                b.dy = Math.sin(angle) * SIMULATION.bounceFactor;
+              }
+            } else {
+              // Two herbivores: simply bounce.
+              const angle = Math.atan2(b.y - a.y, b.x - a.x);
+              a.dx = -Math.cos(angle) * SIMULATION.bounceFactor;
+              a.dy = -Math.sin(angle) * SIMULATION.bounceFactor;
+              b.dx = Math.cos(angle) * SIMULATION.bounceFactor;
+              b.dy = Math.sin(angle) * SIMULATION.bounceFactor;
+            }
+          }
+        }
+      }
+    }
+
+    /* ================================
+       Update Loop
     ================================ */
     function updateCreatures() {
       for (let creature of creatures) {
+        // Move creature.
         creature.x += creature.dx;
         creature.y += creature.dy;
+        // Bounce off canvas edges.
         if (creature.x < 0 || creature.x > canvas.width) creature.dx *= -1;
         if (creature.y < 0 || creature.y > canvas.height) creature.dy *= -1;
+        // Energy drain.
         creature.energy -= SIMULATION.energyDecayRate;
-
+        // If herbivore, attempt to feed.
+        if (isHerbivore(creature)) {
+          herbivoreFeeding(creature);
+        }
+        // (Predators gain energy via collisions in the collision handler.)
+        
+        // Cloning logic: if energy exceeds threshold, split energy and clone.
         if (creature.energy >= creature.maxEnergy) {
           creature.energy /= 2;
-          creatures.push({
-            ...creature,
+          let clone = {
             x: creature.x + randRange(-5, 5),
             y: creature.y + randRange(-5, 5),
             dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed),
-            dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed)
-          });
+            dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed),
+            numVertices: creature.numVertices,
+            shape: generateTwistedShape(creature.numVertices, SIMULATION.creatureRadius),
+            color: creature.color,
+            energy: creature.energy,
+            maxEnergy: creature.maxEnergy,
+            radius: creature.radius
+          };
+          creatures.push(clone);
         }
       }
+      handleCreatureCollisions();
       creatures = creatures.filter(c => c.energy > 0);
     }
 
     /* ================================
-       Rendering
+       Rendering Functions
     ================================ */
     function drawPatches() {
       for (let patch of patches) {
-        ctx.fillStyle = patch.baseColor;
+        if (!patch.vertices || patch.vertices.length === 0) continue;
         ctx.beginPath();
-        ctx.arc(patch.x, patch.y, 50, 0, Math.PI * 2);
+        ctx.moveTo(patch.vertices[0].x, patch.vertices[0].y);
+        for (let i = 1; i < patch.vertices.length; i++) {
+          ctx.lineTo(patch.vertices[i].x, patch.vertices[i].y);
+        }
+        ctx.closePath();
+        // Create a radial gradient based on the polygon’s center.
+        let center = { x: 0, y: 0 };
+        for (let p of patch.vertices) {
+          center.x += p.x; center.y += p.y;
+        }
+        center.x /= patch.vertices.length;
+        center.y /= patch.vertices.length;
+        let grad = ctx.createRadialGradient(center.x, center.y, 5, center.x, center.y, 150);
+        grad.addColorStop(0, patch.baseColor);
+        grad.addColorStop(1, "#000");
+        ctx.fillStyle = grad;
         ctx.fill();
+        ctx.strokeStyle = "#222";
+        ctx.stroke();
       }
     }
 
@@ -176,42 +348,42 @@
         ctx.translate(creature.x, creature.y);
         ctx.beginPath();
         let pts = creature.shape;
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) {
-          ctx.lineTo(pts[i].x, pts[i].y);
+        if (pts.length > 0) {
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) {
+            ctx.lineTo(pts[i].x, pts[i].y);
+          }
+          ctx.closePath();
+          ctx.fillStyle = creature.color;
+          ctx.fill();
+          ctx.strokeStyle = "#000";
+          ctx.stroke();
         }
-        ctx.closePath();
-        ctx.fillStyle = creature.color;
-        ctx.fill();
-        ctx.strokeStyle = "#000";
-        ctx.stroke();
         ctx.restore();
       }
     }
 
     /* ================================
-       Mouse Click Mutation
+       Mouse Interaction (Mutation)
     ================================ */
     canvas.addEventListener("click", function(e) {
       const rect = canvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
-
       for (let creature of creatures) {
         const dx = creature.x - clickX;
         const dy = creature.y - clickY;
         if (Math.hypot(dx, dy) < creature.radius) {
-          if (Math.random() < SIMULATION.mutationChance) {
-            creature.numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
-            creature.shape = generateTwistedShape(creature.numVertices, SIMULATION.creatureRadius);
-            creature.color = randomColor();
-          }
+          // Mutate: change vertex count and color.
+          creature.numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
+          creature.shape = generateTwistedShape(creature.numVertices, SIMULATION.creatureRadius);
+          creature.color = randomColor();
         }
       }
     });
 
     /* ================================
-       Main Loop
+       Main Game Loop
     ================================ */
     function gameLoop() {
       updateCreatures();
@@ -222,10 +394,11 @@
     }
 
     /* ================================
-       Initialize
+       Initialization
     ================================ */
     createPatches();
     gameLoop();
+
   </script>
 </body>
 </html>
