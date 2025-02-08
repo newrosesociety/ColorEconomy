@@ -15,18 +15,6 @@
       display: block;
       background: #111;
     }
-    /* Footer styles */
-    #footer {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      background: black;
-      color: white;
-      text-align: center;
-      padding: 10px;
-      box-sizing: border-box;
-      z-index: 10;
-    }
     /* Reset button styles */
     #resetButton {
       position: fixed;
@@ -43,14 +31,40 @@
     #resetButton:hover {
       background: #444;
     }
+    /* Stats panel styles */
+    #stats {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      width: 250px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid white;
+      z-index: 10;
+    }
+    /* Footer styles */
+    #footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: black;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
   <button id="resetButton">Reset Simulation</button>
+  <div id="stats"></div>
   <div id="footer">
     <p>
-      <strong>ColorEconomy</strong> – In this simulation, the tessellated patches represent a living, shifting environment whose bold, intense hues evolve through random splashes and neighbor interactions. Creatures—symbolizing the consequences of uncontrolled intervention—either feed or battle based on their shape (odd-sided herbivores seek patches that complement them, even-sided predators dominate through combat). Your actions (clicking) induce mutations and mass replacement, exposing the fragile balance between creative diversity and ecological decay.
+      <strong>ColorEconomy</strong> – In this simulation, tessellated patches represent a living, shifting environment with finite resources. Bold, intense hues evolve with random splashes and neighbor interactions. Creatures—odd-sided herbivores and even-sided predators—feed, fight, and mutate, their colors blending with their surroundings. Your interventions (clicks) induce mutations and mass replacement, symbolizing the delicate balance between creative diversity and ecological decay.
     </p>
   </div>
   <script>
@@ -59,48 +73,50 @@
     ================================ */
     const SIMULATION = {
       // Terrain (Patch) Settings
-      numPatches: 100,              // Total number of patch seeds (for Voronoi)
-      minPatchSides: 3,            // Minimum allowed sides per patch
-      maxPatchSides: 9,            // Maximum allowed sides per patch
+      numPatches: 100,              // Increase for a denser tessellation
+      minPatchSides: 3,             // Minimum allowed sides per patch
+      maxPatchSides: 8,             // Maximum allowed sides per patch
       
-      // Patch Color Evolution Settings & Splash Effects:
-      neighborThreshold: 300,      // Distance within which patches influence each other
-      hueAdjustmentFactor: 0.01,   // Fraction by which patch hue moves toward neighbors’ average
-      hueRandomDrift: 0.5,         // Maximum random change in hue per tick
-      lightDrift: 0.2,             // Maximum random change in lightness per tick
-      // For bolder colors, use full saturation and a lower light range:
-      boldSaturation: 100,
-      boldLightMin: 50,
-      boldLightMax: 70,
-      splashProbability: 0.03,     // Chance per patch per tick to spawn a random color splash
-      splashMaxOffset: 30,         // Maximum offset (in hue degrees) for a splash
-      splashLifeDecay: 0.02,       // Amount by which the splash life decays per tick
-
+      // Patch Color Evolution & Food Resource Settings:
+      neighborThreshold: 300,       // Distance within which patches influence each other
+      hueAdjustmentFactor: 0.01,    // Fraction by which patch hue moves toward neighbors’ average
+      hueRandomDrift: 0.5,          // Maximum random change in hue per tick
+      lightDrift: 0.2,              // Maximum random change in lightness per tick
+      boldSaturation: 100,          // Use full saturation for bold colors
+      boldLightMin: 50,             // Minimum lightness for bold patches
+      boldLightMax: 70,             // Maximum lightness for bold patches
+      splashProbability: 0.03,      // Chance per patch per tick for a random color splash
+      splashMaxOffset: 30,          // Maximum hue offset for splash
+      splashLifeDecay: 0.02,        // Splash decay per tick
+      patchResourceInitial: 100,    // Starting resource level per patch
+      patchResourceRecovery: 0.1,   // Resource recovered per tick
+      patchResourceDrain: 0.5,      // Resource drained when a herbivore feeds
+      
       // Creature Settings
-      initialCreatures: 100,        // Starting creature count
-      minVertices: 3,              // Minimum vertices for creature shape
-      maxVertices: 14,              // Maximum vertices for creature shape
-      baseEnergy: 80,              // Starting energy for creatures
-      maxEnergyThreshold: 150,     // Energy required for cloning
-      energyDecayRate: 0.1,        // Energy lost per frame
-      herbivoreEnergyGain: 0.2,    // Extra energy gain when feeding (if condition met)
-      predatorEnergyGain: 10,      // Energy bonus from winning a fight
-      predatorEnergyLoss: 20,      // Energy penalty from losing a fight
-      movementSpeed: 1,            // Base movement speed
-      creatureRadius: 15,          // For collision detection (approximate size)
-      bounceFactor: 1,             // Strength of bounce on collision
-
-      // Wiggle Settings (for creature "walking")
-      wiggleRadius: 3,             // Maximum random offset per vertex per frame
-
-      // Mutation Settings (on spawn and on click)
-      spawnMutationChance: 0.3,    // Chance a newly spawned creature mutates its vertex count
-      mutationChance: 1.0,         // Chance to mutate on click (if targeted)
-      clickReplacementRadius: 100, // Radius (in pixels) around a click for replacement
-
+      initialCreatures: 100,        
+      minVertices: 3,
+      maxVertices: 8,
+      baseEnergy: 80,
+      maxEnergyThreshold: 150,
+      energyDecayRate: 0.1,
+      herbivoreEnergyGain: 0.2,
+      predatorEnergyGain: 10,
+      predatorEnergyLoss: 20,
+      movementSpeed: 1,
+      creatureRadius: 15,
+      bounceFactor: 1,
+      
+      // Wiggle Settings
+      wiggleRadius: 2,
+      
+      // Mutation Settings
+      spawnMutationChance: 0.3,
+      mutationChance: 1.0,
+      clickReplacementRadius: 100,
+      
       // Population Limit
-      maxPopulation: 5000,           // Maximum number of creatures allowed
-
+      maxPopulation: 5000,
+      
       // Debug mode
       debugMode: false
     };
@@ -108,17 +124,12 @@
     /* ================================
        Utility Functions
     ================================ */
-    // Returns a random HSL color string.
     function randomColor() {
       return `hsl(${Math.floor(Math.random() * 360)}, 80%, 60%)`;
     }
-
-    // Returns a random number in [min, max)
     function randRange(min, max) {
       return min + Math.random() * (max - min);
     }
-
-    // Ray-casting point-in-polygon test.
     function pointInPolygon(point, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -130,34 +141,47 @@
       }
       return inside;
     }
-
-    // Helper: interpolate creature color toward grey based on "sickness" (0 = healthy, 1 = fully sick).
-    // Assumes creature.color is in format "hsl(h, s%, l%)"
     function getSickColor(color, sickFactor) {
       const m = color.match(/hsl\((\d+),\s*(\d+)%\s*,\s*(\d+)%\)/);
       if (!m) return color;
-      let h = m[1],
-          s = parseInt(m[2], 10),
-          l = parseInt(m[3], 10);
+      let h = m[1], s = parseInt(m[2], 10), l = parseInt(m[3], 10);
       let newS = Math.round(s * (1 - sickFactor));
       return `hsl(${h}, ${newS}%, ${l}%)`;
     }
-
-    /* ================================
-       Canvas Setup & Global Variables
-    ================================ */
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const bounds = { x: 0, y: 0, w: canvas.width, h: canvas.height };
-
-    let patches = [];
-    let creatures = [];
+    // Helper to blend two HSL colors.
+    function blendHSL(color1, color2, weight) {
+      const m1 = color1.match(/hsl\((\d+),\s*(\d+)%\s*,\s*(\d+)%\)/);
+      const m2 = color2.match(/hsl\((\d+),\s*(\d+)%\s*,\s*(\d+)%\)/);
+      if (!m1 || !m2) return color1;
+      let h1 = parseInt(m1[1]), s1 = parseInt(m1[2]), l1 = parseInt(m1[3]);
+      let h2 = parseInt(m2[1]), s2 = parseInt(m2[2]), l2 = parseInt(m2[3]);
+      let dh = h2 - h1;
+      if (Math.abs(dh) > 180) { dh = dh > 0 ? dh - 360 : dh + 360; }
+      let h = (h1 + weight * dh + 360) % 360;
+      let s = Math.round(s1 * weight + s2 * (1 - weight));
+      let l = Math.round(l1 * weight + l2 * (1 - weight));
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+    // Helper: get simulation statistics.
+    function getStats() {
+      const total = creatures.length;
+      let predators = 0, prey = 0, totalEnergy = 0;
+      let vertexCounts = [];
+      for (let creature of creatures) {
+        totalEnergy += creature.energy;
+        vertexCounts.push(creature.numVertices);
+        if (isHerbivore(creature)) prey++;
+        else predators++;
+      }
+      const avgEnergy = total ? (totalEnergy / total).toFixed(1) : 0;
+      const meanVertices = vertexCounts.reduce((a, b) => a + b, 0) / (vertexCounts.length || 1);
+      const variance = vertexCounts.reduce((a, b) => a + Math.pow(b - meanVertices, 2), 0) / (vertexCounts.length || 1);
+      const stdDev = Math.sqrt(variance).toFixed(1);
+      return { total, predators, prey, avgEnergy, vertexStdDev: stdDev };
+    }
 
     /* ================================
        Patch Energy Boost Function
-       (Used by updateCreatures.)
     ================================ */
     function patchEnergyBoost(creature) {
       for (let patch of patches) {
@@ -169,8 +193,18 @@
     }
 
     /* ================================
+       Canvas Setup & Global Variables
+    ================================ */
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const bounds = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+    let patches = [];
+    let creatures = [];
+
+    /* ================================
        Terrain (Patch) Generation using Voronoi
-       (Generate seeds, compute cells, and enforce a min/max number of sides.)
     ================================ */
     function createPatches() {
       let seeds = [];
@@ -187,12 +221,10 @@
       patches = [];
       for (let seed of seeds) {
         let cell = computeVoronoiCell(seed, seeds, bounds);
-        // Enforce a minimum and maximum number of sides.
         if (cell.length < SIMULATION.minPatchSides) continue;
         while (cell.length > SIMULATION.maxPatchSides) {
           cell.splice(Math.floor(Math.random() * cell.length), 1);
         }
-        // Use bold color settings.
         let hue = randRange(0, 360);
         let sat = SIMULATION.boldSaturation;
         let light = randRange(SIMULATION.boldLightMin, SIMULATION.boldLightMax);
@@ -201,13 +233,14 @@
           hue: hue,
           sat: sat,
           light: light,
+          resource: SIMULATION.patchResourceInitial || 100,
           baseColor: `hsl(${Math.round(hue)}, ${sat}%, ${Math.round(light)}%)`,
-          splash: null // for random splashes
+          splash: null
         });
       }
     }
 
-    // Compute the Voronoi cell for a given seed among all seeds, within bounds.
+    // Compute Voronoi cell for a seed.
     function computeVoronoiCell(seed, seeds, bounds) {
       let cell = [
         { x: bounds.x, y: bounds.y },
@@ -229,7 +262,7 @@
       return cell;
     }
 
-    // Clip a polygon (subjectPolygon) against a half‑plane defined by point p and normal.
+    // Sutherland-Hodgman clipping.
     function clipPolygon(subjectPolygon, p, normal) {
       let outputList = [];
       for (let i = 0; i < subjectPolygon.length; i++) {
@@ -251,7 +284,7 @@
       return outputList;
     }
 
-    // Compute intersection point of lines (p1→p2) and (p3→p4).
+    // Intersection of two lines.
     function lineIntersection(p1, p2, p3, p4) {
       const A1 = p2.y - p1.y;
       const B1 = p1.x - p2.x;
@@ -267,12 +300,11 @@
     }
 
     /* ================================
-       Patch Color Evolution & Splash Effects
+       Patch Color Evolution, Resource, & Splash Effects
     ================================ */
     function updatePatches() {
       for (let patch of patches) {
         if (!patch.vertices || patch.vertices.length === 0) continue;
-        // Compute the center.
         let center = { x: 0, y: 0 };
         for (let p of patch.vertices) {
           center.x += p.x;
@@ -281,8 +313,6 @@
         center.x /= patch.vertices.length;
         center.y /= patch.vertices.length;
         patch.center = center;
-
-        // Average neighbor hues.
         let sumHue = 0, count = 0;
         for (let other of patches) {
           if (other === patch) continue;
@@ -298,13 +328,14 @@
           let avgHue = sumHue / count;
           patch.hue += (avgHue - patch.hue) * SIMULATION.hueAdjustmentFactor;
         }
-        // Apply random drift.
         patch.hue += randRange(-SIMULATION.hueRandomDrift, SIMULATION.hueRandomDrift);
         patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
         patch.hue = (patch.hue + 360) % 360;
         patch.light = Math.min(90, Math.max(60, patch.light));
-
-        // Splash effect: spawn a temporary hue offset.
+        // Recover food resource.
+        patch.resource = Math.min(100, patch.resource + SIMULATION.patchResourceRecovery);
+        // When resource is low, effective saturation decreases.
+        let effectiveSat = SIMULATION.boldSaturation * (patch.resource / 100);
         if (!patch.splash && Math.random() < SIMULATION.splashProbability) {
           patch.splash = {
             hueOffset: randRange(-SIMULATION.splashMaxOffset, SIMULATION.splashMaxOffset),
@@ -313,12 +344,10 @@
         }
         if (patch.splash) {
           patch.splash.life -= SIMULATION.splashLifeDecay;
-          if (patch.splash.life <= 0) {
-            patch.splash = null;
-          }
+          if (patch.splash.life <= 0) patch.splash = null;
         }
         let effectiveHue = patch.hue + (patch.splash ? patch.splash.hueOffset * patch.splash.life : 0);
-        patch.baseColor = `hsl(${Math.round(effectiveHue)}, ${patch.sat}%, ${Math.round(patch.light)}%)`;
+        patch.baseColor = `hsl(${Math.round(effectiveHue)}, ${Math.round(effectiveSat)}%, ${Math.round(patch.light)}%)`;
       }
     }
 
@@ -334,7 +363,6 @@
       }
       return points;
     }
-
     function spawnCreature() {
       let numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
       let creature = {
@@ -355,7 +383,6 @@
       }
       return creature;
     }
-
     for (let i = 0; i < SIMULATION.initialCreatures; i++) {
       creatures.push(spawnCreature());
     }
@@ -366,25 +393,23 @@
     function isHerbivore(creature) {
       return creature.numVertices % 2 === 1;
     }
-
     function herbivoreFeeding(creature) {
       for (let patch of patches) {
         if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
-          if (patch.vertices.length % creature.numVertices === 0) {
+          if (patch.vertices.length % creature.numVertices === 0 && patch.resource > 0) {
             creature.energy += SIMULATION.herbivoreEnergyGain;
+            patch.resource = Math.max(0, patch.resource - SIMULATION.patchResourceDrain);
           }
           break;
         }
       }
     }
-
     function creaturesCollide(c1, c2) {
       const dx = c1.x - c2.x;
       const dy = c1.y - c2.y;
       const dist = Math.hypot(dx, dy);
       return dist < (c1.radius + c2.radius);
     }
-
     function handleCreatureCollisions() {
       for (let i = 0; i < creatures.length; i++) {
         for (let j = i + 1; j < creatures.length; j++) {
@@ -472,9 +497,20 @@
         ctx.fill();
       }
     }
-
     function drawCreatures() {
       for (let creature of creatures) {
+        // Find the patch under this creature.
+        let currentPatch = null;
+        for (let patch of patches) {
+          if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
+            currentPatch = patch;
+            break;
+          }
+        }
+        let blendedColor = creature.color;
+        if (currentPatch) {
+          blendedColor = blendHSL(creature.color, currentPatch.baseColor, 0.5);
+        }
         ctx.save();
         ctx.translate(creature.x, creature.y);
         ctx.beginPath();
@@ -492,8 +528,8 @@
         }
         ctx.closePath();
         let sickFactor = Math.min(1, Math.max(0, 1 - (creature.energy / SIMULATION.baseEnergy)));
-        let fillColor = getSickColor(creature.color, sickFactor);
-        ctx.fillStyle = fillColor;
+        let finalColor = getSickColor(blendedColor, sickFactor);
+        ctx.fillStyle = finalColor;
         ctx.fill();
         ctx.strokeStyle = "#000";
         ctx.stroke();
@@ -539,6 +575,31 @@
     });
 
     /* ================================
+       Stats Panel Update
+    ================================ */
+    function updateStats() {
+      const statsDiv = document.getElementById("stats");
+      const total = creatures.length;
+      let predators = 0, prey = 0, totalEnergy = 0;
+      let vertexCounts = [];
+      for (let creature of creatures) {
+        totalEnergy += creature.energy;
+        vertexCounts.push(creature.numVertices);
+        if (isHerbivore(creature)) prey++;
+        else predators++;
+      }
+      const avgEnergy = total ? (totalEnergy / total).toFixed(1) : 0;
+      const meanVertices = vertexCounts.reduce((a, b) => a + b, 0) / (vertexCounts.length || 1);
+      const variance = vertexCounts.reduce((a, b) => a + Math.pow(b - meanVertices, 2), 0) / (vertexCounts.length || 1);
+      const stdDev = Math.sqrt(variance).toFixed(1);
+      statsDiv.innerHTML = `<strong>Simulation Stats</strong><br>
+                            Total Population: ${total}<br>
+                            Predators: ${predators} | Prey: ${prey}<br>
+                            Avg Energy: ${avgEnergy}<br>
+                            Vertex Variation: ${stdDev}`;
+    }
+
+    /* ================================
        Main Game Loop
     ================================ */
     function gameLoop() {
@@ -547,6 +608,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawPatches();
       drawCreatures();
+      updateStats();
       requestAnimationFrame(gameLoop);
     }
 
@@ -563,7 +625,13 @@
     /* ================================
        Initialization
     ================================ */
+    function initPatchResources() {
+      for (let patch of patches) {
+        patch.resource = SIMULATION.patchResourceInitial || 100;
+      }
+    }
     createPatches();
+    initPatchResources();
     gameLoop();
   </script>
 </body>
