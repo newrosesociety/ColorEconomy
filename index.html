@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ColorEconomy</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let patches = [];
+    let creatures = [];
+
+    const gridSize = 5; // More patches = better tessellation
+    const cellWidth = canvas.width / gridSize;
+    const cellHeight = canvas.height / gridSize;
+
+    function randomColor() {
+      return `hsl(${Math.random() * 360}, 80%, 60%)`;
+    }
+
+    function createPatches() {
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
+          let patch = {
+            x: x * cellWidth,
+            y: y * cellHeight,
+            width: cellWidth,
+            height: cellHeight,
+            baseColor: randomColor(),
+          };
+          patches.push(patch);
+        }
+      }
+    }
+
+    function generateTwistedShape(radius) {
+      let points = [];
+      for (let i = 0; i < 6; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let x = Math.cos(angle) * radius * (Math.random() * 1.5);
+        let y = Math.sin(angle) * radius * (Math.random() * 1.5);
+        points.push({ x, y });
+      }
+      return points;
+    }
+
+    function spawnCreatures(num) {
+      for (let i = 0; i < num; i++) {
+        creatures.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          dx: (Math.random() - 0.5) * 2,
+          dy: (Math.random() - 0.5) * 2,
+          shape: generateTwistedShape(15),
+          color: randomColor(),
+          energy: 50 + Math.random() * 100,
+          maxEnergy: 150,
+        });
+      }
+    }
+
+    function checkCollision(c1, c2) {
+      let dx = c1.x - c2.x;
+      let dy = c1.y - c2.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      return distance < 20;
+    }
+
+    function handleCollisions() {
+      for (let i = 0; i < creatures.length; i++) {
+        for (let j = i + 1; j < creatures.length; j++) {
+          let c1 = creatures[i];
+          let c2 = creatures[j];
+
+          if (checkCollision(c1, c2)) {
+            if (c1.energy > c2.energy * 1.2) {
+              c1.energy += c2.energy * 0.5;
+              c2.energy *= 0.5;
+            } else if (c2.energy > c1.energy * 1.2) {
+              c2.energy += c1.energy * 0.5;
+              c1.energy *= 0.5;
+            } else {
+              // Bounce effect
+              let tempDx = c1.dx;
+              let tempDy = c1.dy;
+              c1.dx = c2.dx;
+              c1.dy = c2.dy;
+              c2.dx = tempDx;
+              c2.dy = tempDy;
+            }
+          }
+        }
+      }
+    }
+
+    function update() {
+      creatures.forEach(creature => {
+        creature.x += creature.dx;
+        creature.y += creature.dy;
+
+        if (creature.x < 0 || creature.x > canvas.width) creature.dx *= -1;
+        if (creature.y < 0 || creature.y > canvas.height) creature.dy *= -1;
+
+        creature.energy -= 0.1;
+        if (creature.energy >= creature.maxEnergy) {
+          creatures.push({
+            x: creature.x + Math.random() * 10 - 5,
+            y: creature.y + Math.random() * 10 - 5,
+            dx: (Math.random() - 0.5) * 2,
+            dy: (Math.random() - 0.5) * 2,
+            shape: generateTwistedShape(15),
+            color: randomColor(),
+            energy: creature.energy / 2,
+            maxEnergy: creature.maxEnergy,
+          });
+          creature.energy /= 2;
+        }
+      });
+
+      handleCollisions();
+      creatures = creatures.filter(c => c.energy > 0);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      patches.forEach(patch => {
+        ctx.fillStyle = patch.baseColor;
+        ctx.fillRect(patch.x, patch.y, patch.width, patch.height);
+      });
+
+      creatures.forEach(creature => {
+        ctx.save();
+        ctx.translate(creature.x, creature.y);
+        ctx.beginPath();
+        let pts = creature.shape;
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = creature.color;
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    createPatches();
+    spawnCreatures(1000);
+    gameLoop();
+
+  </script>
+</body>
+</html>
