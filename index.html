@@ -64,7 +64,7 @@
   <div id="stats"></div>
   <div id="footer">
     <p>
-      <strong>ColorEconomy</strong> – In this simulation, tessellated patches represent a living, shifting environment with finite resources. Bold, intense hues evolve with random splashes and neighbor interactions. Creatures—odd-sided herbivores and even-sided predators—feed, fight, and mutate, their colors blending with their surroundings. Your interventions (clicks) induce mutations and mass replacement, symbolizing the delicate balance between creative diversity and ecological decay.
+      <strong>ColorEconomy</strong> – In this simulation, tessellated patches represent a living, shifting environment with finite food resources. Bold, intense hues evolve through random splashes and neighbor interactions, but as food is drained the patches fade to grey. Creatures – odd-sided herbivores and even-sided predators – feed, fight, and mutate, their colors blending with their surroundings. Your interventions (clicks) induce mutations and mass replacement, symbolizing the delicate balance between creative diversity and ecological decay.
     </p>
   </div>
   <script>
@@ -73,29 +73,29 @@
     ================================ */
     const SIMULATION = {
       // Terrain (Patch) Settings
-      numPatches: 100,              // Increase for a denser tessellation
+      numPatches: 100,              // More patches = denser tessellation
       minPatchSides: 3,             // Minimum allowed sides per patch
-      maxPatchSides: 8,             // Maximum allowed sides per patch
+      maxPatchSides: 9,             // Maximum allowed sides per patch
       
       // Patch Color Evolution & Food Resource Settings:
       neighborThreshold: 300,       // Distance within which patches influence each other
-      hueAdjustmentFactor: 0.01,    // Fraction by which patch hue moves toward neighbors’ average
+      hueAdjustmentFactor: 0.01,    // How fast patch hue moves toward the neighbors’ average
       hueRandomDrift: 0.5,          // Maximum random change in hue per tick
       lightDrift: 0.2,              // Maximum random change in lightness per tick
-      boldSaturation: 100,          // Use full saturation for bold colors
+      boldSaturation: 100,          // Bold saturation for patches
       boldLightMin: 50,             // Minimum lightness for bold patches
       boldLightMax: 70,             // Maximum lightness for bold patches
       splashProbability: 0.03,      // Chance per patch per tick for a random color splash
-      splashMaxOffset: 30,          // Maximum hue offset for splash
+      splashMaxOffset: 30,          // Maximum hue offset for splash effect
       splashLifeDecay: 0.02,        // Splash decay per tick
-      patchResourceInitial: 100,    // Starting resource level per patch
+      patchResourceInitial: 100,    // Starting food resource per patch
       patchResourceRecovery: 0.1,   // Resource recovered per tick
       patchResourceDrain: 0.5,      // Resource drained when a herbivore feeds
       
       // Creature Settings
       initialCreatures: 100,        
       minVertices: 3,
-      maxVertices: 8,
+      maxVertices: 19,
       baseEnergy: 80,
       maxEnergyThreshold: 150,
       energyDecayRate: 0.1,
@@ -106,7 +106,7 @@
       creatureRadius: 15,
       bounceFactor: 1,
       
-      // Wiggle Settings
+      // Wiggle Settings (for creature "walking")
       wiggleRadius: 2,
       
       // Mutation Settings
@@ -130,6 +130,7 @@
     function randRange(min, max) {
       return min + Math.random() * (max - min);
     }
+    // Ray-casting point-in-polygon test.
     function pointInPolygon(point, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -141,6 +142,7 @@
       }
       return inside;
     }
+    // Helper: interpolate creature color toward grey based on "sickness" (0 = healthy, 1 = fully sick).
     function getSickColor(color, sickFactor) {
       const m = color.match(/hsl\((\d+),\s*(\d+)%\s*,\s*(\d+)%\)/);
       if (!m) return color;
@@ -148,7 +150,7 @@
       let newS = Math.round(s * (1 - sickFactor));
       return `hsl(${h}, ${newS}%, ${l}%)`;
     }
-    // Helper to blend two HSL colors.
+    // Helper: blend two HSL colors.
     function blendHSL(color1, color2, weight) {
       const m1 = color1.match(/hsl\((\d+),\s*(\d+)%\s*,\s*(\d+)%\)/);
       const m2 = color2.match(/hsl\((\d+),\s*(\d+)%\s*,\s*(\d+)%\)/);
@@ -156,7 +158,9 @@
       let h1 = parseInt(m1[1]), s1 = parseInt(m1[2]), l1 = parseInt(m1[3]);
       let h2 = parseInt(m2[1]), s2 = parseInt(m2[2]), l2 = parseInt(m2[3]);
       let dh = h2 - h1;
-      if (Math.abs(dh) > 180) { dh = dh > 0 ? dh - 360 : dh + 360; }
+      if (Math.abs(dh) > 180) {
+        dh = dh > 0 ? dh - 360 : dh + 360;
+      }
       let h = (h1 + weight * dh + 360) % 360;
       let s = Math.round(s1 * weight + s2 * (1 - weight));
       let l = Math.round(l1 * weight + l2 * (1 - weight));
@@ -165,19 +169,23 @@
     // Helper: get simulation statistics.
     function getStats() {
       const total = creatures.length;
-      let predators = 0, prey = 0, totalEnergy = 0;
+      let predators = 0, prey = 0, totalCreatureEnergy = 0;
       let vertexCounts = [];
       for (let creature of creatures) {
-        totalEnergy += creature.energy;
+        totalCreatureEnergy += creature.energy;
         vertexCounts.push(creature.numVertices);
         if (isHerbivore(creature)) prey++;
         else predators++;
       }
-      const avgEnergy = total ? (totalEnergy / total).toFixed(1) : 0;
-      const meanVertices = vertexCounts.reduce((a, b) => a + b, 0) / (vertexCounts.length || 1);
-      const variance = vertexCounts.reduce((a, b) => a + Math.pow(b - meanVertices, 2), 0) / (vertexCounts.length || 1);
-      const stdDev = Math.sqrt(variance).toFixed(1);
-      return { total, predators, prey, avgEnergy, vertexStdDev: stdDev };
+      const avgCreatureEnergy = total ? (totalCreatureEnergy / total).toFixed(1) : 0;
+      const distinctTypes = new Set(vertexCounts).size;
+      // Average plant energy: average food resource of patches.
+      let totalPlantEnergy = 0;
+      for (let patch of patches) {
+        totalPlantEnergy += patch.resource;
+      }
+      const avgPlantEnergy = patches.length ? (totalPlantEnergy / patches.length).toFixed(1) : 0;
+      return { total, predators, prey, avgCreatureEnergy, avgPlantEnergy, distinctTypes };
     }
 
     /* ================================
@@ -240,7 +248,6 @@
       }
     }
 
-    // Compute Voronoi cell for a seed.
     function computeVoronoiCell(seed, seeds, bounds) {
       let cell = [
         { x: bounds.x, y: bounds.y },
@@ -262,7 +269,6 @@
       return cell;
     }
 
-    // Sutherland-Hodgman clipping.
     function clipPolygon(subjectPolygon, p, normal) {
       let outputList = [];
       for (let i = 0; i < subjectPolygon.length; i++) {
@@ -284,7 +290,6 @@
       return outputList;
     }
 
-    // Intersection of two lines.
     function lineIntersection(p1, p2, p3, p4) {
       const A1 = p2.y - p1.y;
       const B1 = p1.x - p2.x;
@@ -332,9 +337,7 @@
         patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
         patch.hue = (patch.hue + 360) % 360;
         patch.light = Math.min(90, Math.max(60, patch.light));
-        // Recover food resource.
         patch.resource = Math.min(100, patch.resource + SIMULATION.patchResourceRecovery);
-        // When resource is low, effective saturation decreases.
         let effectiveSat = SIMULATION.boldSaturation * (patch.resource / 100);
         if (!patch.splash && Math.random() < SIMULATION.splashProbability) {
           patch.splash = {
@@ -375,7 +378,8 @@
         color: randomColor(),
         energy: SIMULATION.baseEnergy,
         maxEnergy: SIMULATION.maxEnergyThreshold,
-        radius: SIMULATION.creatureRadius
+        radius: SIMULATION.creatureRadius,
+        colliding: false  // flag to indicate visual collision
       };
       if (Math.random() < SIMULATION.spawnMutationChance) {
         creature.numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
@@ -411,11 +415,18 @@
       return dist < (c1.radius + c2.radius);
     }
     function handleCreatureCollisions() {
+      // Clear collision flags first.
+      for (let creature of creatures) {
+        creature.colliding = false;
+      }
       for (let i = 0; i < creatures.length; i++) {
         for (let j = i + 1; j < creatures.length; j++) {
           let a = creatures[i];
           let b = creatures[j];
           if (creaturesCollide(a, b)) {
+            // Mark as colliding to trigger visual effect.
+            a.colliding = true;
+            b.colliding = true;
             if (!isHerbivore(a) || !isHerbivore(b)) {
               if (a.energy > b.energy * 1.1) {
                 a.energy += SIMULATION.predatorEnergyGain;
@@ -468,7 +479,8 @@
             color: creature.color,
             energy: creature.energy,
             maxEnergy: creature.maxEnergy,
-            radius: creature.radius
+            radius: creature.radius,
+            colliding: false
           };
           creatures.push(clone);
         }
@@ -531,7 +543,14 @@
         let finalColor = getSickColor(blendedColor, sickFactor);
         ctx.fillStyle = finalColor;
         ctx.fill();
-        ctx.strokeStyle = "#000";
+        // If colliding, draw a red outline.
+        if (creature.colliding) {
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 3;
+        } else {
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 1;
+        }
         ctx.stroke();
         ctx.restore();
       }
@@ -568,7 +587,8 @@
             color: newConfig.color,
             energy: SIMULATION.baseEnergy,
             maxEnergy: SIMULATION.maxEnergyThreshold,
-            radius: SIMULATION.creatureRadius
+            radius: SIMULATION.creatureRadius,
+            colliding: false
           };
         });
       }
@@ -579,24 +599,33 @@
     ================================ */
     function updateStats() {
       const statsDiv = document.getElementById("stats");
-      const total = creatures.length;
-      let predators = 0, prey = 0, totalEnergy = 0;
-      let vertexCounts = [];
-      for (let creature of creatures) {
-        totalEnergy += creature.energy;
-        vertexCounts.push(creature.numVertices);
-        if (isHerbivore(creature)) prey++;
-        else predators++;
-      }
-      const avgEnergy = total ? (totalEnergy / total).toFixed(1) : 0;
-      const meanVertices = vertexCounts.reduce((a, b) => a + b, 0) / (vertexCounts.length || 1);
-      const variance = vertexCounts.reduce((a, b) => a + Math.pow(b - meanVertices, 2), 0) / (vertexCounts.length || 1);
-      const stdDev = Math.sqrt(variance).toFixed(1);
+      const { total, predators, prey, avgCreatureEnergy, avgPlantEnergy, vertexStdDev, distinctTypes } = (function() {
+        const total = creatures.length;
+        let predators = 0, prey = 0, totalCreatureEnergy = 0;
+        let vertexCounts = [];
+        for (let creature of creatures) {
+          totalCreatureEnergy += creature.energy;
+          vertexCounts.push(creature.numVertices);
+          if (isHerbivore(creature)) prey++;
+          else predators++;
+        }
+        const avgCreatureEnergy = total ? (totalCreatureEnergy / total).toFixed(1) : 0;
+        // Biodiversity: distinct creature types based on vertex count.
+        const distinctTypes = new Set(vertexCounts).size;
+        // Average plant energy (i.e. resource in patches).
+        let totalPlantEnergy = 0;
+        for (let patch of patches) {
+          totalPlantEnergy += patch.resource;
+        }
+        const avgPlantEnergy = patches.length ? (totalPlantEnergy / patches.length).toFixed(1) : 0;
+        return { total, predators, prey, avgCreatureEnergy, avgPlantEnergy, distinctTypes };
+      })();
       statsDiv.innerHTML = `<strong>Simulation Stats</strong><br>
                             Total Population: ${total}<br>
                             Predators: ${predators} | Prey: ${prey}<br>
-                            Avg Energy: ${avgEnergy}<br>
-                            Vertex Variation: ${stdDev}`;
+                            Avg Creature Energy: ${avgCreatureEnergy}<br>
+                            Avg Plant Energy: ${avgPlantEnergy}<br>
+                            Biodiversity (distinct types): ${distinctTypes}`;
     }
 
     /* ================================
