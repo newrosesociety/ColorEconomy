@@ -9,25 +9,75 @@
       padding: 0;
       background: #111;
       overflow: hidden;
+      font-family: sans-serif;
     }
     canvas {
       display: block;
       background: #111;
     }
+    /* Footer styles */
+    #footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: black;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    /* Reset button styles */
+    #resetButton {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #222;
+      color: white;
+      border: 2px solid white;
+      cursor: pointer;
+      z-index: 10;
+    }
+    #resetButton:hover {
+      background: #444;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <button id="resetButton">Reset Simulation</button>
+  <div id="footer">
+    <p>
+      <strong>ColorEconomy</strong> – In this simulation, the tessellated patches represent a living, shifting environment whose bold, intense hues evolve through random splashes and neighbor interactions. Creatures—symbolizing the consequences of uncontrolled intervention—either feed or battle based on their shape (odd-sided herbivores seek patches that complement them, even-sided predators dominate through combat). Your actions (clicking) induce mutations and mass replacement, exposing the fragile balance between creative diversity and ecological decay.
+    </p>
+  </div>
   <script>
     /* ================================
        Simulation Parameters
     ================================ */
     const SIMULATION = {
       // Terrain (Patch) Settings
-      numPatches: 50,              // Total number of patches (grid cells)
+      numPatches: 100,              // Total number of patch seeds (for Voronoi)
+      minPatchSides: 3,            // Minimum allowed sides per patch
+      maxPatchSides: 9,            // Maximum allowed sides per patch
       
+      // Patch Color Evolution Settings & Splash Effects:
+      neighborThreshold: 300,      // Distance within which patches influence each other
+      hueAdjustmentFactor: 0.01,   // Fraction by which patch hue moves toward neighbors’ average
+      hueRandomDrift: 0.5,         // Maximum random change in hue per tick
+      lightDrift: 0.2,             // Maximum random change in lightness per tick
+      // For bolder colors, use full saturation and a lower light range:
+      boldSaturation: 100,
+      boldLightMin: 50,
+      boldLightMax: 70,
+      splashProbability: 0.03,     // Chance per patch per tick to spawn a random color splash
+      splashMaxOffset: 30,         // Maximum offset (in hue degrees) for a splash
+      splashLifeDecay: 0.02,       // Amount by which the splash life decays per tick
+
       // Creature Settings
-      initialCreatures: 10000,        // Starting creature count
+      initialCreatures: 500,        // Starting creature count
       minVertices: 3,              // Minimum vertices for creature shape
       maxVertices: 14,              // Maximum vertices for creature shape
       baseEnergy: 80,              // Starting energy for creatures
@@ -41,21 +91,15 @@
       bounceFactor: 1,             // Strength of bounce on collision
 
       // Wiggle Settings (for creature "walking")
-      wiggleRadius: 2,             // Maximum random offset per vertex per frame
+      wiggleRadius: 3,             // Maximum random offset per vertex per frame
 
       // Mutation Settings (on spawn and on click)
       spawnMutationChance: 0.3,    // Chance a newly spawned creature mutates its vertex count
-      mutationChance: 1.0,         // Chance to mutate on click (if clicked creature is targeted)
+      mutationChance: 1.0,         // Chance to mutate on click (if targeted)
       clickReplacementRadius: 100, // Radius (in pixels) around a click for replacement
 
       // Population Limit
-      maxPopulation: 50,           // Maximum number of creatures allowed
-
-      // Patch Color Evolution Settings
-      neighborThreshold: 300,      // Distance within which patches influence each other
-      hueAdjustmentFactor: 0.01,   // Fraction by which patch hue moves toward neighbors’ average
-      hueRandomDrift: 0.5,         // Maximum random change in hue per tick
-      lightDrift: 0.2,             // Maximum random change in lightness per tick
+      maxPopulation: 5000,           // Maximum number of creatures allowed
 
       // Debug mode
       debugMode: false
@@ -112,45 +156,123 @@
     let creatures = [];
 
     /* ================================
-       Terrain (Patch) Generation using a Grid
+       Patch Energy Boost Function
+       (Used by updateCreatures.)
     ================================ */
-    function createPatches() {
-      const gridCols = Math.ceil(Math.sqrt(SIMULATION.numPatches));
-      const gridRows = Math.ceil(SIMULATION.numPatches / gridCols);
-      const patchWidth = canvas.width / gridCols;
-      const patchHeight = canvas.height / gridRows;
-      patches = [];
-      for (let r = 0; r < gridRows; r++) {
-        for (let c = 0; c < gridCols; c++) {
-          const perturbX = patchWidth * 0.1;
-          const perturbY = patchHeight * 0.1;
-          let vertices = [
-            { x: c * patchWidth + randRange(0, perturbX), y: r * patchHeight + randRange(0, perturbY) },
-            { x: (c + 1) * patchWidth + randRange(-perturbX, 0), y: r * patchHeight + randRange(0, perturbY) },
-            { x: (c + 1) * patchWidth + randRange(-perturbX, 0), y: (r + 1) * patchHeight + randRange(-perturbY, 0) },
-            { x: c * patchWidth + randRange(0, perturbX), y: (r + 1) * patchHeight + randRange(-perturbY, 0) }
-          ];
-          let hue = randRange(0, 360);
-          let sat = 90;
-          let light = randRange(70, 85);
-          patches.push({
-            vertices: vertices,
-            hue: hue,
-            sat: sat,
-            light: light,
-            baseColor: `hsl(${Math.round(hue)}, ${sat}%, ${Math.round(light)}%)`
-          });
+    function patchEnergyBoost(creature) {
+      for (let patch of patches) {
+        if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
+          return (patch.light - 60) * 0.01;
         }
       }
+      return 0;
     }
 
     /* ================================
-       Patch Color Evolution
+       Terrain (Patch) Generation using Voronoi
+       (Generate seeds, compute cells, and enforce a min/max number of sides.)
+    ================================ */
+    function createPatches() {
+      let seeds = [];
+      const gridCols = Math.ceil(Math.sqrt(SIMULATION.numPatches));
+      const gridRows = Math.ceil(SIMULATION.numPatches / gridCols);
+      for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+          if (seeds.length >= SIMULATION.numPatches) break;
+          const x = (c + 0.5) * canvas.width / gridCols + randRange(-50, 50);
+          const y = (r + 0.5) * canvas.height / gridRows + randRange(-50, 50);
+          seeds.push({ x, y });
+        }
+      }
+      patches = [];
+      for (let seed of seeds) {
+        let cell = computeVoronoiCell(seed, seeds, bounds);
+        // Enforce a minimum and maximum number of sides.
+        if (cell.length < SIMULATION.minPatchSides) continue;
+        while (cell.length > SIMULATION.maxPatchSides) {
+          cell.splice(Math.floor(Math.random() * cell.length), 1);
+        }
+        // Use bold color settings.
+        let hue = randRange(0, 360);
+        let sat = SIMULATION.boldSaturation;
+        let light = randRange(SIMULATION.boldLightMin, SIMULATION.boldLightMax);
+        patches.push({
+          vertices: cell,
+          hue: hue,
+          sat: sat,
+          light: light,
+          baseColor: `hsl(${Math.round(hue)}, ${sat}%, ${Math.round(light)}%)`,
+          splash: null // for random splashes
+        });
+      }
+    }
+
+    // Compute the Voronoi cell for a given seed among all seeds, within bounds.
+    function computeVoronoiCell(seed, seeds, bounds) {
+      let cell = [
+        { x: bounds.x, y: bounds.y },
+        { x: bounds.x + bounds.w, y: bounds.y },
+        { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
+        { x: bounds.x, y: bounds.y + bounds.h }
+      ];
+      for (let other of seeds) {
+        if (other === seed) continue;
+        const mid = { x: (seed.x + other.x) / 2, y: (seed.y + other.y) / 2 };
+        let normal = { x: seed.x - other.x, y: seed.y - other.y };
+        const len = Math.hypot(normal.x, normal.y);
+        if (len === 0) continue;
+        normal.x /= len;
+        normal.y /= len;
+        cell = clipPolygon(cell, mid, normal);
+        if (cell.length === 0) break;
+      }
+      return cell;
+    }
+
+    // Clip a polygon (subjectPolygon) against a half‑plane defined by point p and normal.
+    function clipPolygon(subjectPolygon, p, normal) {
+      let outputList = [];
+      for (let i = 0; i < subjectPolygon.length; i++) {
+        const cur = subjectPolygon[i];
+        const prev = subjectPolygon[(i - 1 + subjectPolygon.length) % subjectPolygon.length];
+        const curDot = (cur.x - p.x) * normal.x + (cur.y - p.y) * normal.y;
+        const prevDot = (prev.x - p.x) * normal.x + (prev.y - p.y) * normal.y;
+        if (curDot >= 0) {
+          if (prevDot < 0) {
+            const intersect = lineIntersection(prev, cur, p, { x: p.x + normal.y, y: p.y - normal.x });
+            if (intersect) outputList.push(intersect);
+          }
+          outputList.push(cur);
+        } else if (prevDot >= 0) {
+          const intersect = lineIntersection(prev, cur, p, { x: p.x + normal.y, y: p.y - normal.x });
+          if (intersect) outputList.push(intersect);
+        }
+      }
+      return outputList;
+    }
+
+    // Compute intersection point of lines (p1→p2) and (p3→p4).
+    function lineIntersection(p1, p2, p3, p4) {
+      const A1 = p2.y - p1.y;
+      const B1 = p1.x - p2.x;
+      const C1 = A1 * p1.x + B1 * p1.y;
+      const A2 = p4.y - p3.y;
+      const B2 = p3.x - p4.x;
+      const C2 = A2 * p3.x + B2 * p3.y;
+      const det = A1 * B2 - A2 * B1;
+      if (Math.abs(det) < 0.00001) return null;
+      const x = (B2 * C1 - B1 * C2) / det;
+      const y = (A1 * C2 - A2 * C1) / det;
+      return { x, y };
+    }
+
+    /* ================================
+       Patch Color Evolution & Splash Effects
     ================================ */
     function updatePatches() {
       for (let patch of patches) {
         if (!patch.vertices || patch.vertices.length === 0) continue;
-        // Compute the center of the patch.
+        // Compute the center.
         let center = { x: 0, y: 0 };
         for (let p of patch.vertices) {
           center.x += p.x;
@@ -176,23 +298,28 @@
           let avgHue = sumHue / count;
           patch.hue += (avgHue - patch.hue) * SIMULATION.hueAdjustmentFactor;
         }
-        // Random drift.
+        // Apply random drift.
         patch.hue += randRange(-SIMULATION.hueRandomDrift, SIMULATION.hueRandomDrift);
         patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
         patch.hue = (patch.hue + 360) % 360;
         patch.light = Math.min(90, Math.max(60, patch.light));
-        patch.baseColor = `hsl(${Math.round(patch.hue)}, ${patch.sat}%, ${Math.round(patch.light)}%)`;
-      }
-    }
 
-    // Each creature gets an extra energy boost based on the patch it is on.
-    function patchEnergyBoost(creature) {
-      for (let patch of patches) {
-        if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
-          return (patch.light - 60) * 0.01;
+        // Splash effect: spawn a temporary hue offset.
+        if (!patch.splash && Math.random() < SIMULATION.splashProbability) {
+          patch.splash = {
+            hueOffset: randRange(-SIMULATION.splashMaxOffset, SIMULATION.splashMaxOffset),
+            life: 1
+          };
         }
+        if (patch.splash) {
+          patch.splash.life -= SIMULATION.splashLifeDecay;
+          if (patch.splash.life <= 0) {
+            patch.splash = null;
+          }
+        }
+        let effectiveHue = patch.hue + (patch.splash ? patch.splash.hueOffset * patch.splash.life : 0);
+        patch.baseColor = `hsl(${Math.round(effectiveHue)}, ${patch.sat}%, ${Math.round(patch.light)}%)`;
       }
-      return 0;
     }
 
     /* ================================
@@ -343,8 +470,6 @@
         ctx.closePath();
         ctx.fillStyle = patch.baseColor;
         ctx.fill();
-        ctx.strokeStyle = "#222";
-        ctx.stroke();
       }
     }
 
@@ -377,7 +502,8 @@
     }
 
     /* ================================
-       Click Replacement: Replace creatures in a radius with a new type.
+       Click Replacement:
+       Replace all creatures in a radius with a new type.
     ================================ */
     canvas.addEventListener("click", function(e) {
       const rect = canvas.getBoundingClientRect();
@@ -423,6 +549,16 @@
       drawCreatures();
       requestAnimationFrame(gameLoop);
     }
+
+    /* ================================
+       Reset Simulation Functionality
+    ================================ */
+    document.getElementById("resetButton").addEventListener("click", function() {
+      creatures = [];
+      for (let i = 0; i < SIMULATION.initialCreatures; i++) {
+        creatures.push(spawnCreature());
+      }
+    });
 
     /* ================================
        Initialization
