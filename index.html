@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>ColorEconomy</title>
   <style>
+    /* Basic Reset and Global Styles */
     html, body {
       margin: 0;
       padding: 0;
@@ -14,55 +15,82 @@
     canvas {
       display: block;
       background: #111;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
     }
-    /* Reset button styles */
+    /* Sidebar Styles */
+    #sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      color: #fff;
+      padding: 10px;
+      box-sizing: border-box;
+      z-index: 100;
+      overflow-y: auto;
+    }
+    #sidebar h2, #sidebar h3 {
+      margin-top: 0;
+    }
+    #sidebar .control {
+      margin-bottom: 10px;
+    }
+    #sidebar label {
+      display: block;
+      margin-bottom: 4px;
+    }
+    #sidebar input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      background: #333;
+      height: 6px;
+      border-radius: 3px;
+    }
+    #sidebar input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      border: 2px solid #222;
+    }
+    #sidebar input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      border: 2px solid #222;
+    }
+    /* Reset Button Styles */
     #resetButton {
       position: fixed;
       top: 20px;
-      right: 20px;
+      right: 340px; /* Place left of the sidebar */
       padding: 10px 20px;
       font-size: 16px;
       background: #222;
       color: white;
       border: 2px solid white;
       cursor: pointer;
-      z-index: 10;
+      z-index: 100;
     }
     #resetButton:hover {
       background: #444;
-    }
-    /* Stats and controls panel styles */
-    #stats {
-      position: fixed;
-      top: 70px;
-      right: 20px;
-      width: 320px;
-      background: rgba(0,0,0,0.85);
-      color: #fff;
-      padding: 10px;
-      font-size: 14px;
-      border: 1px solid white;
-      z-index: 10;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-    #stats div.control {
-      margin-bottom: 8px;
-    }
-    #stats label {
-      display: block;
-      margin-bottom: 2px;
-    }
-    #stats input[type="range"] {
-      width: 100%;
     }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
   <button id="resetButton">Reset Simulation</button>
-  <div id="stats">
-    <div><strong>Simulation Stats</strong></div>
+  <div id="sidebar">
+    <h2>Simulation Stats</h2>
     <div id="statsValues"></div>
     <hr>
     <div class="control">
@@ -82,10 +110,10 @@
       <input type="range" id="sliderDiversity" min="0.5" max="2.0" step="0.1" value="1.0">
     </div>
     <hr>
-    <div>
-      <strong>About ColorEconomy:</strong><br>
-      Tessellated patches are a dynamic ecosystem with finite food resources. Bold patch colors fade to grey as food is drained. Odd‐sided herbivores actively seek patches that “fit” their form, while even‐sided predators pursue prey and move faster. Creature cloning occurs when energy thresholds (adjusted by birth rates) are reached—when that happens, a glowing outline signals multiplication. Your interactions (clicks) induce mass replacement, revealing the fragile balance between diversity and decay.
-    </div>
+    <h3>About ColorEconomy</h3>
+    <p>
+      Tessellated patches represent a dynamic ecosystem with finite food resources. Bold patch colors evolve through random splashes and neighbor interactions. When food is abundant, patches are vivid; as resources dwindle, they fade to grey. Odd‑sided herbivores actively seek nutrient‑rich patches while even‑sided predators pursue prey—and benefit from a speed boost. Creature speed and size vary with vertex count (fewer vertices → faster & smaller). When energy is low, both creatures and patches desaturate to grey. Your interactions (clicks) induce mutations and mass replacement, revealing the fragile balance between diversity and decay.
+    </p>
   </div>
   <script>
     /* ================================
@@ -97,7 +125,7 @@
       minPatchSides: 3,
       maxPatchSides: 8,
       
-      // Patch Color & Food Settings:
+      // Patch Color Evolution & Food Resource Settings:
       neighborThreshold: 300,
       hueAdjustmentFactor: 0.01,
       hueRandomDrift: 0.5,
@@ -113,7 +141,7 @@
       patchResourceDrain: 0.5,
       
       // Creature Settings
-      initialCreatures: 100,       // default 100 (slider-controlled)
+      initialCreatures: 100,
       minVertices: 3,
       maxVertices: 8,
       baseEnergy: 80,
@@ -134,10 +162,10 @@
       mutationChance: 1.0,
       clickReplacementRadius: 100,
       
-      // Population Limit (10x starting creatures)
+      // Population Limit (max is 10x starting creatures)
       maxPopulation: 1000,
       
-      // New Parameters from Sliders:
+      // Slider-controlled parameters:
       predatorBirthRate: 1.0,
       preyBirthRate: 1.0,
       diversity: 1.0,
@@ -387,10 +415,8 @@
       return points;
     }
     function spawnCreature() {
-      // Use the diversity slider to modify vertex range.
       const effectiveMax = Math.max(SIMULATION.minVertices + 1, Math.round(SIMULATION.maxVertices * SIMULATION.diversity));
       let numVertices = Math.floor(randRange(SIMULATION.minVertices, effectiveMax + 1));
-      // For speed and size multipliers: fewer vertices → faster and smaller.
       let speedMultiplier = (SIMULATION.maxVertices + 1 - numVertices) / SIMULATION.maxVertices;
       let sizeMultiplier = 1 + (numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
       let creature = {
@@ -420,7 +446,6 @@
       return creature;
     }
     function isHerbivore(creature) {
-      // If creature is passed as an object with just numVertices, treat that accordingly.
       return creature.numVertices % 2 === 1;
     }
     for (let i = 0; i < SIMULATION.initialCreatures; i++) {
@@ -442,7 +467,6 @@
       }
     }
     function predatorSeekPrey(creature) {
-      // For predators, find the closest prey and adjust velocity slightly toward it.
       let closest = null;
       let minDist = Infinity;
       for (let other of creatures) {
@@ -455,23 +479,19 @@
         }
       }
       if (closest) {
-        // Steer towards the prey (adjust dx, dy slightly)
         let angle = Math.atan2(closest.y - creature.y, closest.x - creature.x);
         creature.dx += 0.05 * Math.cos(angle);
         creature.dy += 0.05 * Math.sin(angle);
       }
     }
     function herbivoreSeekPatch(creature) {
-      // For herbivores, look for a patch that is "desirable"
       let bestPatch = null;
       let bestValue = -Infinity;
       for (let patch of patches) {
         if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
-          // Already here.
           continue;
         }
         if (patch.vertices.length % creature.numVertices === 0 && patch.resource > 0) {
-          // Value could be a function of resource and distance.
           let d = Math.hypot(creature.x - patch.center.x, creature.y - patch.center.y);
           let value = patch.resource - d * 0.05;
           if (value > bestValue) {
@@ -532,7 +552,6 @@
     ================================ */
     function updateCreatures() {
       for (let creature of creatures) {
-        // Move creature.
         creature.x += creature.dx;
         creature.y += creature.dy;
         // Toroidal wrapping.
@@ -548,11 +567,11 @@
         } else {
           predatorSeekPrey(creature);
         }
-        // Clone when energy exceeds threshold; use birth rates to modify threshold.
+        // Clone when energy exceeds threshold, adjusted by birth rate.
         let birthRate = isHerbivore(creature) ? SIMULATION.preyBirthRate : SIMULATION.predatorBirthRate;
         if (creature.energy >= creature.maxEnergy / birthRate) {
           creature.energy /= 2;
-          creature.cloneTimer = 20; // flag for visual indication.
+          creature.cloneTimer = 20;
           let clone = spawnCreature();
           clone.x = creature.x + randRange(-5, 5);
           clone.y = creature.y + randRange(-5, 5);
@@ -561,7 +580,6 @@
           clone.maxEnergy = creature.maxEnergy;
           creatures.push(clone);
         }
-        // Decrement clone timer if set.
         if (creature.cloneTimer && creature.cloneTimer > 0) {
           creature.cloneTimer--;
         }
@@ -592,7 +610,6 @@
     }
     function drawCreatures() {
       for (let creature of creatures) {
-        // Find the patch under this creature.
         let currentPatch = null;
         for (let patch of patches) {
           if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
@@ -621,12 +638,10 @@
         let finalColor = getSickColor(blendedColor, sickFactor);
         ctx.fillStyle = finalColor;
         ctx.fill();
-        // If colliding, draw red outline.
         if (creature.colliding) {
           ctx.strokeStyle = "red";
           ctx.lineWidth = 3;
         } else if (creature.cloneTimer && creature.cloneTimer > 0) {
-          // Outline to indicate recent multiplication.
           ctx.strokeStyle = "yellow";
           ctx.lineWidth = 3;
         } else {
@@ -698,46 +713,8 @@
                             <em>(Adjust the sliders below.)</em><br>
                             <hr>
                             <strong>About ColorEconomy:</strong><br>
-                            The tessellated patches represent a dynamic ecosystem with finite food resources. Bold, intense patch colors evolve as food is consumed and recovered. Odd‐sided herbivores actively seek out nutrient-rich patches, while even‐sided predators pursue prey. Creature speed and size vary with their form (fewer vertices means faster and smaller). When energy is low, colors fade to grey. Your interactions (clicks) induce mutations and mass replacement, revealing the fragile balance between diversity and decay.`;
+                            Tessellated patches represent a dynamic ecosystem with finite food resources. Bold patch colors fade to grey as resources are drained. Odd‑sided herbivores actively seek nutrient-rich patches, while even‑sided predators pursue prey and gain a speed boost. Creature speed and size vary with vertex count (fewer vertices → faster & smaller). When energy is low, both creatures and patches desaturate to grey. Your interactions (clicks) induce mutations and mass replacement, revealing the fragile balance between diversity and decay.`;
     }
-
-    /* ================================
-       Slider Controls Setup
-    ================================ */
-    // Grab slider elements.
-    const sliderStart = document.getElementById("sliderStart");
-    const valStart = document.getElementById("valStart");
-    const sliderPredator = document.getElementById("sliderPredatorBirthRate");
-    const valPredator = document.getElementById("valPredator");
-    const sliderPrey = document.getElementById("sliderPreyBirthRate");
-    const valPrey = document.getElementById("valPrey");
-    const sliderDiversity = document.getElementById("sliderDiversity");
-    const valDiversity = document.getElementById("valDiversity");
-
-    // Set initial slider values.
-    sliderStart.value = SIMULATION.initialCreatures;
-    sliderPredator.value = 1.0;
-    sliderPrey.value = 1.0;
-    sliderDiversity.value = 1.0;
-
-    // Update simulation parameters on slider change.
-    sliderStart.addEventListener("input", function() {
-      SIMULATION.initialCreatures = parseInt(sliderStart.value);
-      SIMULATION.maxPopulation = SIMULATION.initialCreatures * 10;
-      valStart.innerText = sliderStart.value;
-    });
-    sliderPredator.addEventListener("input", function() {
-      SIMULATION.predatorBirthRate = parseFloat(sliderPredator.value);
-      valPredator.innerText = sliderPredator.value;
-    });
-    sliderPrey.addEventListener("input", function() {
-      SIMULATION.preyBirthRate = parseFloat(sliderPrey.value);
-      valPrey.innerText = sliderPrey.value;
-    });
-    sliderDiversity.addEventListener("input", function() {
-      SIMULATION.diversity = parseFloat(sliderDiversity.value);
-      valDiversity.innerText = sliderDiversity.value;
-    });
 
     /* ================================
        Main Game Loop
@@ -773,6 +750,36 @@
     createPatches();
     initPatchResources();
     gameLoop();
+
+    /* ================================
+       Slider Controls Setup
+    ================================ */
+    const sliderStart = document.getElementById("sliderStart");
+    const valStart = document.getElementById("valStart");
+    const sliderPredator = document.getElementById("sliderPredatorBirthRate");
+    const valPredator = document.getElementById("valPredatorBirthRate") || document.getElementById("valPredator");
+    const sliderPrey = document.getElementById("sliderPreyBirthRate");
+    const valPrey = document.getElementById("valPreyBirthRate") || document.getElementById("valPrey");
+    const sliderDiversity = document.getElementById("sliderDiversity");
+    const valDiversity = document.getElementById("valDiversity");
+
+    sliderStart.addEventListener("input", function() {
+      SIMULATION.initialCreatures = parseInt(sliderStart.value);
+      SIMULATION.maxPopulation = SIMULATION.initialCreatures * 10;
+      valStart.innerText = sliderStart.value;
+    });
+    sliderPredator.addEventListener("input", function() {
+      SIMULATION.predatorBirthRate = parseFloat(sliderPredator.value);
+      valPredator.innerText = sliderPredator.value;
+    });
+    sliderPrey.addEventListener("input", function() {
+      SIMULATION.preyBirthRate = parseFloat(sliderPrey.value);
+      valPrey.innerText = sliderPrey.value;
+    });
+    sliderDiversity.addEventListener("input", function() {
+      SIMULATION.diversity = parseFloat(sliderDiversity.value);
+      valDiversity.innerText = sliderDiversity.value;
+    });
   </script>
 </body>
 </html>
