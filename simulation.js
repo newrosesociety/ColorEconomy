@@ -1,5 +1,3 @@
-
-
 /* ================================
    Global Variables & Canvas Setup
 =============================== */
@@ -54,6 +52,41 @@ function updateCreatures() {
     creatures = creatures.slice(creatures.length - SIMULATION.maxPopulation);
   }
   creatures = creatures.filter(c => c.energy > 0);
+}
+
+function handleCreatureCollisions() {
+  // Reset collision flags.
+  for (let creature of creatures) {
+    creature.colliding = false;
+  }
+  
+  for (let i = 0; i < creatures.length; i++) {
+    for (let j = i + 1; j < creatures.length; j++) {
+      let a = creatures[i];
+      let b = creatures[j];
+      if (creaturesCollide(a, b)) {
+        a.colliding = true;
+        b.colliding = true;
+        
+        if (!isHerbivore(a) && isHerbivore(b)) {
+          // Predator (a) vs. Herbivore (b)
+          a.energy += SIMULATION.predatorEnergyGain;
+          b.energy -= SIMULATION.predatorEnergyLoss;
+        } else if (isHerbivore(a) && !isHerbivore(b)) {
+          // Herbivore (a) vs. Predator (b)
+          b.energy += SIMULATION.predatorEnergyGain;
+          a.energy -= SIMULATION.predatorEnergyLoss;
+        } else {
+          // Otherwise, both are of the same type; just bounce them
+          const angle = Math.atan2(b.y - a.y, b.x - a.x);
+          a.dx = -Math.cos(angle) * SIMULATION.bounceFactor;
+          a.dy = -Math.sin(angle) * SIMULATION.bounceFactor;
+          b.dx = Math.cos(angle) * SIMULATION.bounceFactor;
+          b.dy = Math.sin(angle) * SIMULATION.bounceFactor;
+        }
+      }
+    }
+  }
 }
 
 /* ================================
