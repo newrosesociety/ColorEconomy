@@ -25,11 +25,15 @@ function spawnCreature() {
     let numVertices = Math.floor(randRange(SIMULATION.minVertices, effectiveMax + 1));
     let speedMultiplier = (SIMULATION.maxVertices + 1 - numVertices) / SIMULATION.maxVertices;
     let sizeMultiplier = 1 + (numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
+    
+    // Determine creature type once
+    const isHerb = Math.random() < SIMULATION.herbivoreProbability;
+    
     let creature = {
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (Math.random() < SIMULATION.herbivoreProbability ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
-        dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (Math.random() < SIMULATION.herbivoreProbability ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+        dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+        dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
         numVertices: numVertices,
         baseShape: generateTwistedShape(numVertices, SIMULATION.creatureRadius * sizeMultiplier),
         color: randomColor(),
@@ -38,7 +42,7 @@ function spawnCreature() {
         radius: SIMULATION.creatureRadius * sizeMultiplier,
         colliding: false,
         cloneTimer: 0,
-        herbivore: Math.random() < SIMULATION.herbivoreProbability // set type based on probability
+        herbivore: isHerb // set type based on probability
     };
 
     // Apply mutation with a chance.
