@@ -42,12 +42,6 @@ function blendHSL(color1, color2, weight) {
   return `hsl(${h}, ${s}%, ${l}%)`;
 }
 
-// Helper function to determine creature type
-function isHerbivore(creature) {
-  // For example, classify herbivores by odd number of vertices.
-  return creature.numVertices % 2 === 1;
-}
-
 /* ================================
    Stats Functions & Helpers
 =============================== */

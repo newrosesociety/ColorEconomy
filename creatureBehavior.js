@@ -28,8 +28,8 @@ function spawnCreature() {
     let creature = {
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerbivore({ numVertices }) ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
-        dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerbivore({ numVertices }) ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+        dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (Math.random() < SIMULATION.herbivoreProbability ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+        dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (Math.random() < SIMULATION.herbivoreProbability ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
         numVertices: numVertices,
         baseShape: generateTwistedShape(numVertices, SIMULATION.creatureRadius * sizeMultiplier),
         color: randomColor(),
@@ -37,7 +37,8 @@ function spawnCreature() {
         maxEnergy: SIMULATION.maxEnergyThreshold,
         radius: SIMULATION.creatureRadius * sizeMultiplier,
         colliding: false,
-        cloneTimer: 0
+        cloneTimer: 0,
+        herbivore: Math.random() < SIMULATION.herbivoreProbability // set type based on probability
     };
 
     // Apply mutation with a chance.
@@ -46,13 +47,17 @@ function spawnCreature() {
         creature.numVertices = numVertices;
         speedMultiplier = (SIMULATION.maxVertices + 1 - numVertices) / SIMULATION.maxVertices;
         sizeMultiplier = 1 + (numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
-        creature.dx = randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerbivore({ numVertices }) ? 1 : SIMULATION.predatorBirthRate * speedMultiplier);
-        creature.dy = randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerbivore({ numVertices }) ? 1 : SIMULATION.predatorBirthRate * speedMultiplier);
+        creature.dx = randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (creature.herbivore ? 1 : SIMULATION.predatorBirthRate * speedMultiplier);
+        creature.dy = randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (creature.herbivore ? 1 : SIMULATION.predatorBirthRate * speedMultiplier);
         creature.radius = SIMULATION.creatureRadius * sizeMultiplier;
         creature.baseShape = generateTwistedShape(numVertices, creature.radius);
     }
     return creature;
 }
+
+function isHerbivore(creature) {
+    return creature.herbivore;
+  }
 
 /**
  * Handles herbivore feeding behavior.

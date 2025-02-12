@@ -57,4 +57,5 @@ const SIMULATION = {
 
   // New property
   herbivoreConstantEnergyGain: 0.2,
+  herbivoreProbability: 0.5, // 50% chance that a creature is herbivore
 };
