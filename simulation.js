@@ -59,17 +59,14 @@ const SIMULATION = {
 /* ================================
    Global Variables & Canvas Setup
 =============================== */
-let paused = false;
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-const bounds = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+
 let patches = [];
 let creatures = [];
-
-
-
+let paused = false;
 
 /* ================================
    Update Loop
@@ -114,8 +111,6 @@ function updateCreatures() {
   }
   creatures = creatures.filter(c => c.energy > 0);
 }
-
-
 
 /* ================================
    Click Replacement
@@ -180,88 +175,105 @@ function updateStats() {
 }
 
 /* ================================
-   Pause/Play Functionality
+   Simulation Initialization
 =============================== */
-const pauseButton = document.getElementById("pauseButton");
-pauseButton.addEventListener("click", function() {
-  paused = !paused;
-  pauseButton.innerText = paused ? "Play" : "Pause";
-});
-
-/* ================================
-   Main Game Loop
-=============================== */
-function gameLoop() {
-  if (!paused) {
-    updatePatches();
-    updateCreatures();
+function initSimulation() {
+  createPatches();
+  initPatchResources();
+  
+  if (creatures.length === 0) {
+    for (let i = 0; i < SIMULATION.initialCreatures; i++) {
+      creatures.push(spawnCreature());
+    }
   }
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawPatches();
-  drawCreatures();
-  updateStats();
-  requestAnimationFrame(gameLoop);
+  console.log("Initial creature count:", creatures.length);
+  
+  setupUIControls();
+  gameLoop();
 }
 
-/* ================================
-   Reset Simulation Functionality
-=============================== */
-document.getElementById("resetButton").addEventListener("click", function() {
-  creatures = [];
-  for (let i = 0; i < SIMULATION.initialCreatures; i++) {
-    creatures.push(spawnCreature());
-  }
-});
-
-/* ================================
-   Initialization
-=============================== */
+// Helper function for patch initialization.
 function initPatchResources() {
   for (let patch of patches) {
     patch.resource = SIMULATION.patchResourceInitial;
   }
 }
-createPatches();
-initPatchResources();
 
-// Initial population if not already set by reset.
-if (creatures.length === 0) {
-  for (let i = 0; i < SIMULATION.initialCreatures; i++) {
-    creatures.push(spawnCreature());
+/* ================================
+   Main Game Loop & Update Functions
+=============================== */
+function updateSimulation() {
+  if (!paused) {
+    updatePatches();
+    updateCreatures();
   }
 }
 
-// For debugging: log the number of creatures.
-console.log("Initial creature count:", creatures.length);
+function renderSimulation() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawPatches();
+  drawCreatures();
+  updateStats();
+}
 
-gameLoop();
+function gameLoop() {
+  updateSimulation();
+  renderSimulation();
+  requestAnimationFrame(gameLoop);
+}
 
 /* ================================
-   Slider Controls Setup
+   UI Controls Setup
 =============================== */
-const sliderStart = document.getElementById("sliderStart");
-const valStart = document.getElementById("valStart");
-const sliderPredator = document.getElementById("sliderPredatorBirthRate");
-const valPredator = document.getElementById("valPredatorBirthRate");
-const sliderPrey = document.getElementById("sliderPreyBirthRate");
-const valPrey = document.getElementById("valPreyBirthRate");
-const sliderDiversity = document.getElementById("sliderDiversity");
-const valDiversity = document.getElementById("valDiversity");
+function setupUIControls() {
+  document.getElementById("resetButton").addEventListener("click", function() {
+    creatures = [];
+    for (let i = 0; i < SIMULATION.initialCreatures; i++) {
+      creatures.push(spawnCreature());
+    }
+  });
 
-sliderStart.addEventListener("input", function() {
-  SIMULATION.initialCreatures = parseInt(sliderStart.value);
-  SIMULATION.maxPopulation = SIMULATION.initialCreatures * 10;
-  valStart.innerText = sliderStart.value;
-});
-sliderPredator.addEventListener("input", function() {
-  SIMULATION.predatorBirthRate = parseFloat(sliderPredator.value);
-  valPredator.innerText = sliderPredator.value;
-});
-sliderPrey.addEventListener("input", function() {
-  SIMULATION.preyBirthRate = parseFloat(sliderPrey.value);
-  valPrey.innerText = sliderPrey.value;
-});
-sliderDiversity.addEventListener("input", function() {
-  SIMULATION.diversity = parseFloat(sliderDiversity.value);
-  valDiversity.innerText = sliderDiversity.value;
-});
+  const pauseButton = document.getElementById("pauseButton");
+  pauseButton.addEventListener("click", function() {
+    paused = !paused;
+    pauseButton.innerText = paused ? "Play" : "Pause";
+  });
+
+  // Slider Controls
+  const sliderStart = document.getElementById("sliderStart");
+  const valStart = document.getElementById("valStart");
+  const sliderPredator = document.getElementById("sliderPredatorBirthRate");
+  const valPredator = document.getElementById("valPredatorBirthRate");
+  const sliderPrey = document.getElementById("sliderPreyBirthRate");
+  const valPrey = document.getElementById("valPreyBirthRate");
+  const sliderDiversity = document.getElementById("sliderDiversity");
+  const valDiversity = document.getElementById("valDiversity");
+
+  sliderStart.addEventListener("input", function() {
+    SIMULATION.initialCreatures = parseInt(sliderStart.value);
+    SIMULATION.maxPopulation = SIMULATION.initialCreatures * 10;
+    valStart.innerText = sliderStart.value;
+  });
+  sliderPredator.addEventListener("input", function() {
+    SIMULATION.predatorBirthRate = parseFloat(sliderPredator.value);
+    valPredator.innerText = sliderPredator.value;
+  });
+  sliderPrey.addEventListener("input", function() {
+    SIMULATION.preyBirthRate = parseFloat(sliderPrey.value);
+    valPrey.innerText = sliderPrey.value;
+  });
+  sliderDiversity.addEventListener("input", function() {
+    SIMULATION.diversity = parseFloat(sliderDiversity.value);
+    valDiversity.innerText = sliderDiversity.value;
+  });
+
+  // Canvas Click Replacement
+  canvas.addEventListener("click", function(e) {
+    // ... replace creatures inside the click radius as before ...
+  });
+}
+
+/* ================================
+   Start Simulation
+=============================== */
+initSimulation();
