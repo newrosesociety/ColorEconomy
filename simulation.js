@@ -206,55 +206,7 @@ function lineIntersection(p1, p2, p3, p4) {
   return { x, y };
 }
 
-/* ================================
-   Patch Color Evolution, Resource, & Splash Effects
-=============================== */
-function updatePatches() {
-  for (let patch of patches) {
-    if (!patch.vertices || patch.vertices.length === 0) continue;
-    let center = { x: 0, y: 0 };
-    for (let p of patch.vertices) {
-      center.x += p.x;
-      center.y += p.y;
-    }
-    center.x /= patch.vertices.length;
-    center.y /= patch.vertices.length;
-    patch.center = center;
-    let sumHue = 0, count = 0;
-    for (let other of patches) {
-      if (other === patch) continue;
-      if (!other.center) continue;
-      let dx = other.center.x - center.x;
-      let dy = other.center.y - center.y;
-      if (Math.hypot(dx, dy) < SIMULATION.neighborThreshold) {
-        sumHue += other.hue;
-        count++;
-      }
-    }
-    if (count > 0) {
-      let avgHue = sumHue / count;
-      patch.hue += (avgHue - patch.hue) * SIMULATION.hueAdjustmentFactor;
-    }
-    patch.hue += randRange(-SIMULATION.hueRandomDrift, SIMULATION.hueRandomDrift);
-    patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
-    patch.hue = (patch.hue + 360) % 360;
-    patch.light = Math.min(90, Math.max(60, patch.light));
-    patch.resource = Math.min(100, patch.resource + SIMULATION.patchResourceRecovery);
-    let effectiveSat = SIMULATION.boldSaturation * (patch.resource / 100);
-    if (!patch.splash && Math.random() < SIMULATION.splashProbability) {
-      patch.splash = {
-        hueOffset: randRange(-SIMULATION.splashMaxOffset, SIMULATION.splashMaxOffset),
-        life: 1
-      };
-    }
-    if (patch.splash) {
-      patch.splash.life -= SIMULATION.splashLifeDecay;
-      if (patch.splash.life <= 0) patch.splash = null;
-    }
-    let effectiveHue = patch.hue + (patch.splash ? patch.splash.hueOffset * patch.splash.life : 0);
-    patch.baseColor = `hsl(${Math.round(effectiveHue)}, ${Math.round(effectiveSat)}%, ${Math.round(patch.light)}%)`;
-  }
-}
+
 
 /* ================================
    Creature Generation & Mutation
