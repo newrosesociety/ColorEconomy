@@ -41,3 +41,9 @@ function blendHSL(color1, color2, weight) {
   let l = Math.round(l1 * weight + l2 * (1 - weight));
   return `hsl(${h}, ${s}%, ${l}%)`;
 }
+
+// Helper function to determine creature type
+function isHerbivore(creature) {
+  // For example, classify herbivores by odd number of vertices.
+  return creature.numVertices % 2 === 1;
+}

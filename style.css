@@ -1,0 +1,99 @@
+/* Basic Reset and Global Styles */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #111;
+  overflow: hidden;
+  font-family: sans-serif;
+}
+
+canvas {
+  display: block;
+  background: #111;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+/* Sidebar Styles */
+#sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 10px;
+  box-sizing: border-box;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+#sidebar h2, #sidebar h3 {
+  text-align: center;
+  margin-top: 0;
+}
+
+#sidebar .control {
+  margin-bottom: 10px;
+}
+
+#sidebar label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Style the slider so it stands out */
+#sidebar input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  background: #333;
+  height: 6px;
+  border-radius: 3px;
+}
+
+#sidebar input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #222;
+}
+
+#sidebar input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #222;
+}
+
+/* Reset and Pause Button Styles */
+#resetButton, #pauseButton {
+  position: fixed;
+  right: 340px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background: #222;
+  color: white;
+  border: 2px solid white;
+  cursor: pointer;
+  z-index: 100;
+}
+
+#resetButton {
+  top: 20px;
+}
+
+#pauseButton {
+  top: 70px;  /* Placed below the reset button */
+}
+
+#resetButton:hover, #pauseButton:hover {
+  background: #444;
+}
