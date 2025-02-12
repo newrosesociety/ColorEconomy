@@ -53,7 +53,10 @@ const SIMULATION = {
   diversity: 1.0,
   
   // Debug mode
-  debugMode: false
+  debugMode: false,
+
+  // New property
+  herbivoreConstantEnergyGain: 0.2,
 };
 
 /* ================================

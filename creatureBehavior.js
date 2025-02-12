@@ -55,19 +55,15 @@ function spawnCreature() {
 }
 
 /**
- * Handles herbivore feeding behavior based on overlapping patches.
+ * Handles herbivore feeding behavior.
+ * Herbivores now feed at a constant rate for now.
  * @param {Object} creature - The creature object.
  */
 function herbivoreFeeding(creature) {
-    for (let patch of patches) {
-        if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
-            if (patch.vertices.length % creature.numVertices === 0 && patch.resource > 0) {
-                creature.energy += SIMULATION.herbivoreEnergyGain;
-                patch.resource = Math.max(0, patch.resource - SIMULATION.patchResourceDrain);
-            }
-            break;
-        }
-    }
+  if (isHerbivore(creature)) {
+    // Feed at a constant rate.
+    creature.energy += SIMULATION.herbivoreConstantEnergyGain;
+  }
 }
 
 /**
