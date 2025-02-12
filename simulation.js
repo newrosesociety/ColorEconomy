@@ -216,41 +216,43 @@ function setupUIControls() {
     pauseButton.innerText = paused ? "Play" : "Pause";
   });
 
-  // Slider Controls
+  // Slider Controls – use the proper element IDs from index.html
   const sliderStart = document.getElementById("sliderStart");
   const valStart = document.getElementById("valStart");
-  const sliderPredator = document.getElementById("sliderPredatorBirthRate");
-  const valPredator = document.getElementById("valPredatorBirthRate");
-  const sliderPrey = document.getElementById("sliderPreyBirthRate");
-  const valPrey = document.getElementById("valPreyBirthRate");
-  const sliderDiversity = document.getElementById("sliderDiversity");
-  const valDiversity = document.getElementById("valDiversity");
+
+  const sliderPredator = document.getElementById("sliderPredatorBirth");
+  const valPredator = document.getElementById("valPredatorBirth");
+
+  const sliderPrey = document.getElementById("sliderHerbivoreBirth");
+  const valPrey = document.getElementById("valHerbivoreBirth");
 
   sliderStart.addEventListener("input", function() {
     SIMULATION.initialCreatures = parseInt(sliderStart.value);
     SIMULATION.maxPopulation = SIMULATION.initialCreatures * 10;
     valStart.innerText = sliderStart.value;
   });
+
   sliderPredator.addEventListener("input", function() {
-    SIMULATION.predatorBirthRate = parseFloat(sliderPredator.value);
+    SIMULATION.predatorBirthThreshold = parseFloat(sliderPredator.value);
     valPredator.innerText = sliderPredator.value;
   });
+
   sliderPrey.addEventListener("input", function() {
-    SIMULATION.preyBirthRate = parseFloat(sliderPrey.value);
+    SIMULATION.herbivoreBirthThreshold = parseFloat(sliderPrey.value);
     valPrey.innerText = sliderPrey.value;
   });
-  sliderDiversity.addEventListener("input", function() {
-    SIMULATION.diversity = parseFloat(sliderDiversity.value);
-    valDiversity.innerText = sliderDiversity.value;
-  });
 
-  // Canvas Click Replacement
+
+  // Canvas Click Replacement (if needed)
   canvas.addEventListener("click", function(e) {
-    // ... replace creatures inside the click radius as before ...
+
   });
 }
 
 /* ================================
    Start Simulation
 =============================== */
-initSimulation();
+document.addEventListener("DOMContentLoaded", function() {
+  setupUIControls();
+  initSimulation();
+});

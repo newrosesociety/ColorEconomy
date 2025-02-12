@@ -30,22 +30,53 @@
       <input type="range" id="sliderStart" min="100" max="1000" step="100" value="100">
     </div>
     <div class="control">
-      <label>Predator Birth Rate: <span id="valPredatorBirthRate">1.0</span></label>
-      <input type="range" id="sliderPredatorBirthRate" min="0.5" max="2.0" step="0.1" value="1.0">
+      <label>Herbivore Probability: <span id="valHerbivoreProb">0.5</span></label>
+      <input type="range" id="sliderHerbivoreProb" min="0" max="1" step="0.01" value="0.5">
     </div>
     <div class="control">
-      <label>Prey Birth Rate: <span id="valPreyBirthRate">1.0</span></label>
-      <input type="range" id="sliderPreyBirthRate" min="0.5" max="2.0" step="0.1" value="1.0">
+      <label>Herbivore Birth Threshold: <span id="valHerbivoreBirth">80</span></label>
+      <input type="range" id="sliderHerbivoreBirth" min="50" max="150" step="1" value="80">
     </div>
     <div class="control">
-      <label>Diversity: <span id="valDiversity">1.0</span></label>
-      <input type="range" id="sliderDiversity" min="0.5" max="2.0" step="0.1" value="1.0">
+      <label>Predator Birth Threshold: <span id="valPredatorBirth">150</span></label>
+      <input type="range" id="sliderPredatorBirth" min="100" max="250" step="1" value="150">
     </div>
     <hr>
     <h3>About ColorEconomy</h3>
     <p style="text-align: center; line-height: 1.4; margin: 10px;">
-      Tessellated patches represent a dynamic ecosystem with finite food resources. Bold, vivid hues reveal a flourishing world—but as resources dwindle, these colors fade to grey, symbolizing decay and fragility. Odd‑sided herbivores actively seek nutrient‑rich patches, while even‑sided predators pursue prey and gain a speed boost. Creature speed and size vary with vertex count: fewer vertices yield faster, smaller forms; more vertices result in slower, larger ones. When energy is low, both creatures and patches desaturate to grey. Your interactions (clicks) trigger mutations and mass replacement, exposing the delicate balance between diversity and decay.
+      In ColorEconomy, a dynamic ecosystem unfolds as tessellated patches support life. Creatures emerge as either herbivores or predators. The probability for a creature to be an herbivore is adjustable; a lower value produces more predators. Herbivores gain energy at a constant rate and reproduce when their energy exceeds the set "Herbivore Birth Threshold." Predators, which gain energy by pursuing prey, reproduce when they reach the "Predator Birth Threshold." Interactions with patches and collisions further influence energy levels and dynamics, resulting in a delicate balance between diversity and decay.
     </p>
   </div>
+
+  <script>
+    // Attach event listeners to update SIMULATION config when sliders move.
+    const sliderStart = document.getElementById("sliderStart");
+    const valStart = document.getElementById("valStart");
+    sliderStart.addEventListener("input", function() {
+      SIMULATION.initialCreatures = parseInt(sliderStart.value);
+      valStart.innerText = sliderStart.value;
+    });
+
+    const sliderHerbProb = document.getElementById("sliderHerbivoreProb");
+    const valHerbProb = document.getElementById("valHerbivoreProb");
+    sliderHerbProb.addEventListener("input", function() {
+      SIMULATION.herbivoreProbability = parseFloat(sliderHerbProb.value);
+      valHerbProb.innerText = sliderHerbProb.value;
+    });
+
+    const sliderHerbBirth = document.getElementById("sliderHerbivoreBirth");
+    const valHerbBirth = document.getElementById("valHerbivoreBirth");
+    sliderHerbBirth.addEventListener("input", function() {
+      SIMULATION.herbivoreBirthThreshold = parseFloat(sliderHerbBirth.value);
+      valHerbBirth.innerText = sliderHerbBirth.value;
+    });
+
+    const sliderPredBirth = document.getElementById("sliderPredatorBirth");
+    const valPredBirth = document.getElementById("valPredatorBirth");
+    sliderPredBirth.addEventListener("input", function() {
+      SIMULATION.predatorBirthThreshold = parseFloat(sliderPredBirth.value);
+      valPredBirth.innerText = sliderPredBirth.value;
+    });
+  </script>
 </body>
 </html>

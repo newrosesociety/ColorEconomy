@@ -48,14 +48,15 @@ const SIMULATION = {
   maxPopulation: 1000,
   
   // Slider-controlled parameters:
-  predatorBirthRate: 1.0,
-  preyBirthRate: 1.0,
+  predatorBirthRate: 1.0,  // (optional; might not be used after adding thresholds)
+  preyBirthRate: 1.0,      // (optional; might not be used after adding thresholds)
   diversity: 1.0,
   
-  // Debug mode
   debugMode: false,
-
-  // New property
   herbivoreConstantEnergyGain: 0.2,
-  herbivoreProbability: 0.5, // 50% chance that a creature is herbivore
+  
+  // New Parameters:
+  herbivoreProbability: 0.5,   // Probability that a creature is herbivore (adjust slider)
+  herbivoreBirthThreshold: 80, // Energy needed for herbivore reproduction
+  predatorBirthThreshold: 150  // Energy needed for predator reproduction
 };
