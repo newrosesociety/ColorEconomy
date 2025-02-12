@@ -47,3 +47,31 @@ function isHerbivore(creature) {
   // For example, classify herbivores by odd number of vertices.
   return creature.numVertices % 2 === 1;
 }
+
+/* ================================
+   Stats Functions & Helpers
+=============================== */
+function getStats() {
+    const total = creatures.length;
+    let predators = 0, prey = 0, totalCreatureEnergy = 0;
+    let vertexCounts = [];
+    for (let creature of creatures) {
+      totalCreatureEnergy += creature.energy;
+      vertexCounts.push(creature.numVertices);
+      if (isHerbivore(creature)) prey++;
+      else predators++;
+    }
+    const avgCreatureEnergy = total ? (totalCreatureEnergy / total).toFixed(1) : 0;
+    const energyProportion = total ? `${avgCreatureEnergy}/${SIMULATION.maxEnergyThreshold}` : "0";
+    const meanVertices = vertexCounts.reduce((a, b) => a + b, 0) / (vertexCounts.length || 1);
+    const variance = vertexCounts.reduce((a, b) => a + Math.pow(b - meanVertices, 2), 0) / (vertexCounts.length || 1);
+    const stdDev = Math.sqrt(variance).toFixed(1);
+    let totalPlantEnergy = 0;
+    for (let patch of patches) {
+      totalPlantEnergy += patch.resource;
+    }
+    const avgPlantEnergy = patches.length ? (totalPlantEnergy / patches.length).toFixed(1) : 0;
+    const plantProportion = `${avgPlantEnergy}/100`;
+    const distinctTypes = new Set(vertexCounts).size;
+    return { total, predators, prey, energyProportion, plantProportion, stdDev, distinctTypes };
+  }
