@@ -229,3 +229,47 @@ function handleCreatureCollisions() {
         }
     }
 }
+
+function updateCreatures() {
+  for (const creature of creatures) {
+    // Move the creature, etc.
+
+    // Find the patch under the creature.
+    const patch = getPatchUnderCreature(creature);
+    if (patch) {
+      // If the creature is an herbivore, feed on the patch!
+      if (creature.type === "herbivore") {
+        feedPatch(patch, creature.color);
+      }
+    }
+  }
+}
+
+// This can be a helper function that returns the patch under a given creature.
+function getPatchUnderCreature(creature) {
+  for (const patch of patches) {
+    if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) {
+      return patch;
+    }
+  }
+  return null;
+}
+
+function feedPatch(patch, herbColor) {
+  console.log("feedPatch called on:", patch, "with color:", herbColor);
+  patch.whiteOverlay = 0;      // Force the patch to be fully visible
+  patch.baseColor = herbColor; // Set the patch’s color
+}
+
+function updatePatchColorAndResource(patch, allPatches) {
+  return; // Temporarily disable automatic color updates
+  // ...existing code...
+}
+
+// In your main draw loop:
+for (const patch of patches) {
+  drawPatch(patch);  // draws patch.baseColor
+}
+for (const creature of creatures) {
+  drawCreature(creature); // draws creature on top
+}

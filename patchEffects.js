@@ -224,10 +224,8 @@ function initPatches() {
  * @param {string} herbColor - The feeding herbivore's hue.
  */
 function feedPatch(patch, herbColor) {
-  // Reduce the white overlay so the underlying color shows.
+  console.log("feedPatch called on:", patch, "with color:", herbColor);
   patch.whiteOverlay = Math.max(0, patch.whiteOverlay - 0.15);
-  
-  // Set the patch baseColor directly to the creature's color.
   patch.baseColor = herbColor;
 }
 
@@ -279,6 +277,11 @@ function initSimulation() {
 function herbivoreSeekPatch(creature) {
   const patch = patches[creature.targetPatch];
   if (!patch) return; // Avoid referencing an undefined patch!
+  
+  // Example feeding logic (pseudo-code)
+  if (creatureIsOnPatch(creature, patch)) {
+    feedPatch(patch, creature.color);
+  }
   
   // ... your existing logic ...
 }
