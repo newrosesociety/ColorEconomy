@@ -58,5 +58,9 @@ const SIMULATION = {
   // New Parameters:
   herbivoreProbability: 0.5,   // Probability that a creature is herbivore (adjust slider)
   herbivoreBirthThreshold: 80, // Energy needed for herbivore reproduction
-  predatorBirthThreshold: 150  // Energy needed for predator reproduction
+  predatorBirthThreshold: 150, // Energy needed for predator reproduction
+  
+  // New fixed species counts:
+  herbivoreSpeciesCount: 3,
+  predatorSpeciesCount: 3
 };

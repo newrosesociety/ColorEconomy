@@ -16,47 +16,71 @@ function generateTwistedShape(numVertices, radius) {
     return points;
 }
 
+let herbivoreSpeciesShapes = [];
+let predatorSpeciesShapes = [];
+
+function initSpeciesShapes() {
+  // Pre-create fixed shapes for herbivores.
+  for (let i = 0; i < SIMULATION.herbivoreSpeciesCount; i++) {
+    const numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
+    const shape = generateTwistedShape(numVertices, SIMULATION.creatureRadius);
+    herbivoreSpeciesShapes.push({ numVertices, baseShape: shape });
+  }
+  // Pre-create fixed shapes for predators.
+  for (let i = 0; i < SIMULATION.predatorSpeciesCount; i++) {
+    const numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
+    const shape = generateTwistedShape(numVertices, SIMULATION.creatureRadius);
+    predatorSpeciesShapes.push({ numVertices, baseShape: shape });
+  }
+}
+
 /**
  * Spawns a new creature with potential mutation.
  * @returns {Object} A creature object.
  */
 function spawnCreature() {
-    const effectiveMax = Math.max(SIMULATION.minVertices + 1, Math.round(SIMULATION.maxVertices * SIMULATION.diversity));
-    let numVertices = Math.floor(randRange(SIMULATION.minVertices, effectiveMax + 1));
-    let speedMultiplier = (SIMULATION.maxVertices + 1 - numVertices) / SIMULATION.maxVertices;
-    let sizeMultiplier = 1 + (numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
-    
-    // Determine creature type once
-    const isHerb = Math.random() < SIMULATION.herbivoreProbability;
-    
-    let creature = {
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
-        dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
-        numVertices: numVertices,
-        baseShape: generateTwistedShape(numVertices, SIMULATION.creatureRadius * sizeMultiplier),
-        color: randomColor(),
-        energy: SIMULATION.baseEnergy,
-        maxEnergy: SIMULATION.maxEnergyThreshold,
-        radius: SIMULATION.creatureRadius * sizeMultiplier,
-        colliding: false,
-        cloneTimer: 0,
-        herbivore: isHerb // set type based on probability
-    };
+  // Determine creature type only once.
+  const isHerb = Math.random() < SIMULATION.herbivoreProbability;
+  
+  // Select a fixed species shape based on creature type.
+  let speciesShape;
+  let speciesIndex;
+  if (isHerb) {
+    speciesIndex = Math.floor(randRange(0, SIMULATION.herbivoreSpeciesCount));
+    speciesShape = herbivoreSpeciesShapes[speciesIndex];
+  } else {
+    speciesIndex = Math.floor(randRange(0, SIMULATION.predatorSpeciesCount));
+    speciesShape = predatorSpeciesShapes[speciesIndex];
+  }
+  
+  // Determine multipliers (optional based on species shape vertices).
+  let speedMultiplier = (SIMULATION.maxVertices + 1 - speciesShape.numVertices) / SIMULATION.maxVertices;
+  let sizeMultiplier = 1 + (speciesShape.numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
+  
+  let creature = {
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+    dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+    numVertices: speciesShape.numVertices,
+    baseShape: speciesShape.baseShape, // Use fixed species shape.
+    color: randomColor(),
+    energy: SIMULATION.baseEnergy,
+    maxEnergy: SIMULATION.maxEnergyThreshold,
+    radius: SIMULATION.creatureRadius * sizeMultiplier,
+    colliding: false,
+    cloneTimer: 0,
+    herbivore: isHerb,
+    species: speciesIndex // Optional, can be used for further species-specific behavior.
+  };
 
-    // Apply mutation with a chance.
-    if (Math.random() < SIMULATION.spawnMutationChance) {
-        numVertices = Math.floor(randRange(SIMULATION.minVertices, effectiveMax + 1));
-        creature.numVertices = numVertices;
-        speedMultiplier = (SIMULATION.maxVertices + 1 - numVertices) / SIMULATION.maxVertices;
-        sizeMultiplier = 1 + (numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
-        creature.dx = randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (creature.herbivore ? 1 : SIMULATION.predatorBirthRate * speedMultiplier);
-        creature.dy = randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (creature.herbivore ? 1 : SIMULATION.predatorBirthRate * speedMultiplier);
-        creature.radius = SIMULATION.creatureRadius * sizeMultiplier;
-        creature.baseShape = generateTwistedShape(numVertices, creature.radius);
-    }
-    return creature;
+  // (Optional) Apply mutation logic if needed.
+  if (Math.random() < SIMULATION.spawnMutationChance) {
+    // Mutation could maintain the species or trigger a change.
+    // For now, we keep the species fixed so their shape remains the same.
+  }
+  
+  return creature;
 }
 
 function isHerbivore(creature) {

@@ -155,6 +155,7 @@ function updateStats() {
    Simulation Initialization
 =============================== */
 function initSimulation() {
+  initSpeciesShapes();
   createPatches();
   initPatchResources();
   
