@@ -116,7 +116,7 @@ function spawnCreature() {
 
 function isHerbivore(creature) {
     return creature.herbivore;
-  }
+}
 
 /**
  * Handles herbivore feeding behavior.
@@ -213,7 +213,7 @@ function updateCreatures() {
     const patch = getPatchUnderCreature(creature);
     if (patch) {
       // If the creature is an herbivore, feed on the patch!
-      if (creature.type === "herbivore") {
+      if (creature.herbivore) {
         feedPatch(patch, creature.color);
       }
     }
@@ -231,13 +231,12 @@ function getPatchUnderCreature(creature) {
 }
 
 function feedPatch(patch, herbColor) {
-  console.log("feedPatch called on:", patch, "with color:", herbColor);
   patch.whiteOverlay = 0;      // Force the patch to be fully visible
   patch.baseColor = herbColor; // Set the patch’s color
 }
 
 function updatePatchColorAndResource(patch, allPatches) {
   return; // Temporarily disable automatic color updates
-  // ...existing code...
+
 }
 
