@@ -165,7 +165,6 @@ function initSimulation() {
   }
   console.log("Initial creature count:", creatures.length);
   
-  setupUIControls();
   gameLoop();
 }
 
