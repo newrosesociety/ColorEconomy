@@ -154,31 +154,6 @@ function predatorSeekPrey(creature) {
 }
 
 /**
- * Makes an herbivore seek nutrient-rich patches.
- * @param {Object} creature - The herbivore creature.
- */
-function herbivoreSeekPatch(creature) {
-    let bestPatch = null;
-    let bestValue = -Infinity;
-    for (let patch of patches) {
-        if (pointInPolygon({ x: creature.x, y: creature.y }, patch.vertices)) continue;
-        if (patch.vertices.length % creature.numVertices === 0 && patch.resource > 0) {
-            let d = Math.hypot(creature.x - patch.center.x, creature.y - patch.center.y);
-            let value = patch.resource - d * 0.05;
-            if (value > bestValue) {
-                bestValue = value;
-                bestPatch = patch;
-            }
-        }
-    }
-    if (bestPatch) {
-        let angle = Math.atan2(bestPatch.center.y - creature.y, bestPatch.center.x - creature.x);
-        creature.dx += 0.05 * Math.cos(angle);
-        creature.dy += 0.05 * Math.sin(angle);
-    }
-}
-
-/**
  * Tests if two creatures are colliding.
  * @param {Object} c1 - Creature 1.
  * @param {Object} c2 - Creature 2.
