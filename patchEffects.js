@@ -54,6 +54,10 @@ function createPatches() {
       splash: null
     });
   }
+  
+  for (let patch of patches) {
+    patch.center = calculateCenter(patch.vertices);
+  }
 }
   
 function computeVoronoiCell(seed, seeds, bounds) {
@@ -130,10 +134,21 @@ function patchEnergyBoost(creature) {
  * @param {Array} allPatches - Array of all patches (used to compute neighbors).
  */
 function updatePatchColorAndResource(patch, allPatches) {
-  // Calculate center
+  // Disable automatic patch color updates by returning immediately.
+  return;
+  
+  // The code below used to update patch.baseColor – it's now disabled.
+  /*
+  // Always compute the polygon's center.
   patch.center = calculateCenter(patch.vertices);
 
-  // Adjust hue based on neighboring patches within a threshold.
+  // If the patch is essentially untouched, force it to be white.
+  if (patch.whiteOverlay >= 0.99) {
+    patch.baseColor = "#ffffff";
+    return;
+  }
+  
+  // Otherwise, adjust the patch colors.
   let sumHue = 0, count = 0;
   for (let other of allPatches) {
     if (other === patch || !other.center) continue;
@@ -148,18 +163,20 @@ function updatePatchColorAndResource(patch, allPatches) {
     let avgHue = sumHue / count;
     patch.hue += (avgHue - patch.hue) * SIMULATION.hueAdjustmentFactor;
   }
-
+  
   // Apply random drift.
   patch.hue += randRange(-SIMULATION.hueRandomDrift, SIMULATION.hueRandomDrift);
-  patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
   patch.hue = (patch.hue + 360) % 360;
+  
+  // Slightly adjust the light value.
+  patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
   patch.light = Math.min(90, Math.max(60, patch.light));
-
+  
   // Recover patch resources.
   patch.resource = Math.min(100, patch.resource + SIMULATION.patchResourceRecovery);
   const effectiveSat = SIMULATION.boldSaturation * (patch.resource / 100);
-
-  // Manage random splash effects.
+  
+  // Handle splash effects.
   if (!patch.splash && Math.random() < SIMULATION.splashProbability) {
     patch.splash = {
       hueOffset: randRange(-SIMULATION.splashMaxOffset, SIMULATION.splashMaxOffset),
@@ -170,10 +187,11 @@ function updatePatchColorAndResource(patch, allPatches) {
     patch.splash.life -= SIMULATION.splashLifeDecay;
     if (patch.splash.life <= 0) patch.splash = null;
   }
-
-  // Compute base color with splash effect.
+  
+  // Compute the effective hue including any splash effect.
   const effectiveHue = patch.hue + (patch.splash ? patch.splash.hueOffset * patch.splash.life : 0);
   patch.baseColor = `hsl(${Math.round(effectiveHue)}, ${Math.round(effectiveSat)}%, ${Math.round(patch.light)}%)`;
+  */
 }
 
 /**
@@ -184,4 +202,83 @@ function updatePatches() {
     if (!patch.vertices || patch.vertices.length === 0) continue;
     updatePatchColorAndResource(patch, patches);
   }
+}
+
+/**
+ * Initialize each patch with a white overlay.
+ */
+function initPatches() {
+  for (let patch of patches) {
+    patch.whiteOverlay = 1.0;
+    // Force starting color to white so that the mosaic appears white initially.
+    patch.baseColor = "#ffffff";
+    console.log("Initialized patch:", patch);
+  }
+}
+
+/**
+ * When a herbivore feeds on a patch, its feeding reduces the white overlay
+ * and shifts the patch's color toward the herbivore's species hue.
+ * If the patch is being fed on by different hues, blend toward a murky tone.
+ * @param {Object} patch - The patch object.
+ * @param {string} herbColor - The feeding herbivore's hue.
+ */
+function feedPatch(patch, herbColor) {
+  // Reduce the white overlay so the underlying color shows.
+  patch.whiteOverlay = Math.max(0, patch.whiteOverlay - 0.15);
+  
+  // Set the patch baseColor directly to the creature's color.
+  patch.baseColor = herbColor;
+}
+
+/**
+ * During each update, patches recover white overlay if left undisturbed.
+ */
+function updatePatchRecovery() {
+  for (let patch of patches) {
+    // Ensure the patch has a whiteOverlay property.
+    if (patch.whiteOverlay === undefined) {
+      patch.whiteOverlay = 1.0;
+    }
+    patch.whiteOverlay = Math.min(1.0, patch.whiteOverlay + SIMULATION.patchRecoveryRate);
+  }
+}
+
+function drawPatch(patch) {
+  ctx.beginPath();
+  ctx.moveTo(patch.vertices[0].x, patch.vertices[0].y);
+  for (let i = 1; i < patch.vertices.length; i++) {
+    ctx.lineTo(patch.vertices[i].x, patch.vertices[i].y);
+  }
+  ctx.closePath();
+
+  // Draw the underlying vibrant base color.
+  ctx.fillStyle = patch.baseColor;
+  ctx.fill();
+
+  // Draw the white overlay with opacity equal to patch.whiteOverlay.
+  ctx.fillStyle = `rgba(255,255,255,${patch.whiteOverlay})`;
+  ctx.fill();
+}
+
+function initSimulation() {
+  createPatches();
+  initPatches();   // Ensure this is called!
+  initPatchResources();
+  
+  if (creatures.length === 0) {
+    for (let i = 0; i < SIMULATION.initialCreatures; i++) {
+      creatures.push(spawnCreature());
+    }
+  }
+  console.log("Initial creature count:", creatures.length);
+  
+  gameLoop();
+}
+
+function herbivoreSeekPatch(creature) {
+  const patch = patches[creature.targetPatch];
+  if (!patch) return; // Avoid referencing an undefined patch!
+  
+  // ... your existing logic ...
 }
