@@ -266,10 +266,3 @@ function updatePatchColorAndResource(patch, allPatches) {
   // ...existing code...
 }
 
-// In your main draw loop:
-for (const patch of patches) {
-  drawPatch(patch);  // draws patch.baseColor
-}
-for (const creature of creatures) {
-  drawCreature(creature); // draws creature on top
-}
