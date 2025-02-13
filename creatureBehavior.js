@@ -16,17 +16,40 @@ function generateTwistedShape(numVertices, radius) {
     return points;
 }
 
+/**
+ * Generates a virus-like shape: round with evenly spaced angles and a bit of radial jitter.
+ * @param {number} numVertices - Number of vertices for the shape.
+ * @param {number} radius - Base radius for the shape.
+ * @returns {Array} List of points defining the shape.
+ */
+function generateVirusShape(numVertices, radius) {
+  let points = [];
+  const angleStep = (Math.PI * 2) / numVertices;
+  for (let i = 0; i < numVertices; i++) {
+    const angle = i * angleStep;
+    // Apply a jitter between 0.8 and 1.2 for a jagged but round edge.
+    const jitter = randRange(0.8, 1.2);
+    const r = radius * jitter;
+    points.push({ x: r * Math.cos(angle), y: r * Math.sin(angle) });
+  }
+  return points;
+}
+
 let herbivoreSpeciesShapes = [];
 let predatorSpeciesShapes = [];
 
+/**
+ * Pre-creates fixed species shapes for both herbivores and predators.
+ */
 function initSpeciesShapes() {
-  // Pre-create fixed shapes for herbivores.
+  // Pre-create fixed virus-like shapes for herbivores (prey).
   for (let i = 0; i < SIMULATION.herbivoreSpeciesCount; i++) {
-    const numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
-    const shape = generateTwistedShape(numVertices, SIMULATION.creatureRadius);
+    // Use a moderate number of vertices to keep the shape round and simple.
+    const numVertices = Math.floor(randRange(6, 10));
+    const shape = generateVirusShape(numVertices, SIMULATION.creatureRadius);
     herbivoreSpeciesShapes.push({ numVertices, baseShape: shape });
   }
-  // Pre-create fixed shapes for predators.
+  // Pre-create fixed shapes for predators using existing twisted shape.
   for (let i = 0; i < SIMULATION.predatorSpeciesCount; i++) {
     const numVertices = Math.floor(randRange(SIMULATION.minVertices, SIMULATION.maxVertices + 1));
     const shape = generateTwistedShape(numVertices, SIMULATION.creatureRadius);
@@ -53,31 +76,39 @@ function spawnCreature() {
     speciesShape = predatorSpeciesShapes[speciesIndex];
   }
   
-  // Determine multipliers (optional based on species shape vertices).
-  let speedMultiplier = (SIMULATION.maxVertices + 1 - speciesShape.numVertices) / SIMULATION.maxVertices;
-  let sizeMultiplier = 1 + (speciesShape.numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
+  // Base multipliers from the pre-generated species shape.
+  let baseSpeedMultiplier = (SIMULATION.maxVertices + 1 - speciesShape.numVertices) / SIMULATION.maxVertices;
+  let baseSizeMultiplier = 1 + (speciesShape.numVertices - SIMULATION.minVertices) / (SIMULATION.maxVertices - SIMULATION.minVertices) * 0.5;
+  
+  // Updated factors:
+  // Prey (herbivores) are now fat and fluffy (bigger and slower),
+  // while predators remain skinny and sharp (smaller and faster).
+  const sizeFactor = isHerb ? 2.0 : 0.7;
+  const speedFactor = isHerb ? 0.7 : 1.3;
+  
+  const adjustedSize = SIMULATION.creatureRadius * baseSizeMultiplier * sizeFactor;
+  const adjustedSpeed = SIMULATION.movementSpeed * baseSpeedMultiplier * speedFactor;
   
   let creature = {
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    dx: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
-    dy: randRange(-SIMULATION.movementSpeed, SIMULATION.movementSpeed) * (isHerb ? 1 : SIMULATION.predatorBirthRate * speedMultiplier),
+    dx: randRange(-adjustedSpeed, adjustedSpeed),
+    dy: randRange(-adjustedSpeed, adjustedSpeed),
     numVertices: speciesShape.numVertices,
-    baseShape: speciesShape.baseShape, // Use fixed species shape.
+    baseShape: speciesShape.baseShape, // Fixed species shape.
     color: randomColor(),
     energy: SIMULATION.baseEnergy,
     maxEnergy: SIMULATION.maxEnergyThreshold,
-    radius: SIMULATION.creatureRadius * sizeMultiplier,
+    radius: adjustedSize,
     colliding: false,
     cloneTimer: 0,
     herbivore: isHerb,
-    species: speciesIndex // Optional, can be used for further species-specific behavior.
+    species: speciesIndex // Optional species identifier.
   };
 
-  // (Optional) Apply mutation logic if needed.
+  // Optional: Apply mutation logic if desired, but keep the species shape fixed.
   if (Math.random() < SIMULATION.spawnMutationChance) {
-    // Mutation could maintain the species or trigger a change.
-    // For now, we keep the species fixed so their shape remains the same.
+    // Mutation logic here
   }
   
   return creature;
