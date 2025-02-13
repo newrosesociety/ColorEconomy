@@ -137,61 +137,7 @@ function updatePatchColorAndResource(patch, allPatches) {
   // Disable automatic patch color updates by returning immediately.
   return;
   
-  // The code below used to update patch.baseColor – it's now disabled.
-  /*
-  // Always compute the polygon's center.
-  patch.center = calculateCenter(patch.vertices);
-
-  // If the patch is essentially untouched, force it to be white.
-  if (patch.whiteOverlay >= 0.99) {
-    patch.baseColor = "#ffffff";
-    return;
-  }
   
-  // Otherwise, adjust the patch colors.
-  let sumHue = 0, count = 0;
-  for (let other of allPatches) {
-    if (other === patch || !other.center) continue;
-    const dx = other.center.x - patch.center.x;
-    const dy = other.center.y - patch.center.y;
-    if (Math.hypot(dx, dy) < SIMULATION.neighborThreshold) {
-      sumHue += other.hue;
-      count++;
-    }
-  }
-  if (count > 0) {
-    let avgHue = sumHue / count;
-    patch.hue += (avgHue - patch.hue) * SIMULATION.hueAdjustmentFactor;
-  }
-  
-  // Apply random drift.
-  patch.hue += randRange(-SIMULATION.hueRandomDrift, SIMULATION.hueRandomDrift);
-  patch.hue = (patch.hue + 360) % 360;
-  
-  // Slightly adjust the light value.
-  patch.light += randRange(-SIMULATION.lightDrift, SIMULATION.lightDrift);
-  patch.light = Math.min(90, Math.max(60, patch.light));
-  
-  // Recover patch resources.
-  patch.resource = Math.min(100, patch.resource + SIMULATION.patchResourceRecovery);
-  const effectiveSat = SIMULATION.boldSaturation * (patch.resource / 100);
-  
-  // Handle splash effects.
-  if (!patch.splash && Math.random() < SIMULATION.splashProbability) {
-    patch.splash = {
-      hueOffset: randRange(-SIMULATION.splashMaxOffset, SIMULATION.splashMaxOffset),
-      life: 1
-    };
-  }
-  if (patch.splash) {
-    patch.splash.life -= SIMULATION.splashLifeDecay;
-    if (patch.splash.life <= 0) patch.splash = null;
-  }
-  
-  // Compute the effective hue including any splash effect.
-  const effectiveHue = patch.hue + (patch.splash ? patch.splash.hueOffset * patch.splash.life : 0);
-  patch.baseColor = `hsl(${Math.round(effectiveHue)}, ${Math.round(effectiveSat)}%, ${Math.round(patch.light)}%)`;
-  */
 }
 
 /**
